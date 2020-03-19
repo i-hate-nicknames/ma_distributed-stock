@@ -3,8 +3,11 @@ package main
 import (
 	"log"
 	"net"
+	"net/http"
 	"sync"
 	"time"
+
+	"github.com/gin-gonic/gin"
 )
 
 const discoverTimeout = 500 * time.Millisecond
@@ -17,12 +20,36 @@ type RemoteMachines struct {
 func main() {
 	items := make(map[string][]int, 0)
 	machines := &RemoteMachines{items: items}
-	// todo: add web service handlers here
+	go discoverMachines(machines)
 
-	discoverStocks(machines)
+	r := gin.Default()
+	r.GET("/hello", func(c *gin.Context) {
+		log.Println("Greeting all machines")
+		greetMachines(machines)
+		c.JSON(http.StatusNoContent, gin.H{})
+	})
+	r.GET("/", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{
+			"status": "I am ok",
+		})
+	})
+	r.Run(":8001")
 }
 
-func discoverStocks(machines *RemoteMachines) {
+func greetMachines(machines *RemoteMachines) {
+	machines.mux.Lock()
+	defer machines.mux.Unlock()
+	for addr := range machines.items {
+		resp, err := http.Get("http://" + addr + "/hello")
+		if err != nil {
+			log.Printf("Error greeting machine at %s, error: %s\n", addr, err)
+		}
+		defer resp.Body.Close()
+
+	}
+}
+
+func discoverMachines(machines *RemoteMachines) {
 	conn, err := net.ListenUDP("udp", &net.UDPAddr{
 		Port: 3000,
 		IP:   net.ParseIP("0.0.0.0"),
@@ -34,12 +61,12 @@ func discoverStocks(machines *RemoteMachines) {
 
 	buf := make([]byte, 1024)
 	for {
-		log.Println("Reding next portion")
-		_, _, err := conn.ReadFrom(buf[:])
+		// log.Println("Reading next UDP message")
+		n, _, err := conn.ReadFrom(buf[:])
 		if err != nil {
 			log.Println(err)
 		}
-		addMachine(string(buf), machines)
+		addMachine(string(buf[:n]), machines)
 		time.Sleep(discoverTimeout)
 	}
 }
