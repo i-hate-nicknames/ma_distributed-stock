@@ -3,21 +3,26 @@ package main
 import (
 	"log"
 	"net"
+	"sync"
+	"time"
 )
 
-// RemoteMachine represents remote stock machine
-type RemoteMachine struct {
-	address string
-	conn    net.Conn
-	items   []int
+const discoverTimeout = 500 * time.Millisecond
+
+type RemoteMachines struct {
+	mux   sync.Mutex
+	items map[string][]int
 }
 
 func main() {
+	items := make(map[string][]int, 0)
+	machines := &RemoteMachines{items: items}
 	// todo: add web service handlers here
-	discoverStocks()
+
+	discoverStocks(machines)
 }
 
-func discoverStocks() {
+func discoverStocks(machines *RemoteMachines) {
 	conn, err := net.ListenUDP("udp", &net.UDPAddr{
 		Port: 3000,
 		IP:   net.ParseIP("0.0.0.0"),
@@ -34,11 +39,20 @@ func discoverStocks() {
 		if err != nil {
 			log.Println(err)
 		}
-		addMachine(buf)
+		addMachine(string(buf), machines)
+		time.Sleep(discoverTimeout)
 	}
 }
 
-func addMachine(buf []byte) {
-	// todo: actually add machine
-	log.Println("client send us: " + string(buf))
+func addMachine(address string, machines *RemoteMachines) {
+	machines.mux.Lock()
+	defer machines.mux.Unlock()
+	if _, ok := machines.items[address]; ok {
+		// machine is already added
+		return
+	}
+	// todo: parse message and take items from there
+	items := make([]int, 0)
+	machines.items[address] = items
+	log.Printf("Added new machine with the following items %v\n", items)
 }

@@ -3,30 +3,32 @@ package main
 import (
 	"log"
 	"net"
+	"os"
+	"time"
 )
 
+const invitationTimeout = 500 * time.Millisecond
+
 func main() {
-
-}
-
-func searchService() {
-	addr := "127.0.0.1:8050"
+	if len(os.Args) != 2 {
+		log.Fatal("Please, provide port to listen on as an argument")
+	}
+	port := os.Args[1]
+	addr := "127.0.0.1:" + port
 	go sendInvitations(addr)
-	// todo setup an http server listening for requests
-	// from stock center
-	// todo: maybe once center has discovered us reduce the
-	// rate of send invitations
+
 }
 
 // continuously broadcast invitation message over UDP
 // with address to connect
 func sendInvitations(myAddr string) {
-	// todo: add timer and loop
-	con, _ := net.Dial("udp", "127.0.0.1:3000")
-	buf := []byte("Hello zerver:D\n")
-	log.Println("Sending stuff :DDD")
-	_, err := con.Write(buf)
-	if err != nil {
-		log.Println(err)
+	for {
+		time.Sleep(invitationTimeout)
+		con, _ := net.Dial("udp", "127.0.0.1:3000")
+		buf := []byte(myAddr)
+		_, err := con.Write(buf)
+		if err != nil {
+			log.Println(err)
+		}
 	}
 }
