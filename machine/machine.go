@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -8,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"nvm.ga/mastersofcode/golang_2019/stock_distributed/machine/protocol"
 )
 
 const invitationTimeout = 500 * time.Millisecond
@@ -24,6 +26,24 @@ func main() {
 		log.Println("Stock center contaced us!")
 		c.JSON(http.StatusNoContent, gin.H{})
 	})
+	r.POST("/take", func(c *gin.Context) {
+		body, err := ioutil.ReadAll(c.Request.Body)
+		if err != nil {
+			log.Println("Error reading request data -- take items")
+		}
+		msg, err := protocol.Unmarshal(body)
+		if err != nil {
+			log.Println("Error parsing server request -- take items " + err.Error())
+			c.JSON(400, "Invalid request")
+			return
+		}
+		log.Printf("taking items: %v\n", msg.Items)
+
+		c.JSON(http.StatusOK, gin.H{
+			"status": "fine",
+			"items":  msg.Items,
+		})
+	})
 	r.Run(":" + port)
 }
 
@@ -32,7 +52,6 @@ func main() {
 func sendInvitations(myAddr string) {
 	for {
 		time.Sleep(invitationTimeout)
-		// log.Println("Sending a broadcast invitation!")
 		con, _ := net.Dial("udp", "127.0.0.1:3000")
 		buf := []byte(myAddr)
 		_, err := con.Write(buf)

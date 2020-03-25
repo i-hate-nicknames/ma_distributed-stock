@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"log"
 	"net"
 	"net/http"
@@ -8,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"nvm.ga/mastersofcode/golang_2019/stock_distributed/machine/protocol"
 )
 
 const discoverTimeout = 500 * time.Millisecond
@@ -33,6 +35,9 @@ func main() {
 			"status": "I am ok",
 		})
 	})
+	r.GET("/takeSome", func(c *gin.Context) {
+		takeItems(machines)
+	})
 	r.Run(":8001")
 }
 
@@ -45,7 +50,21 @@ func greetMachines(machines *RemoteMachines) {
 			log.Printf("Error greeting machine at %s, error: %s\n", addr, err)
 		}
 		defer resp.Body.Close()
+	}
+}
 
+// simulate taking items: send take item requests to all available machines
+func takeItems(machines *RemoteMachines) {
+	machines.mux.Lock()
+	defer machines.mux.Unlock()
+	for addr := range machines.items {
+		msg := &protocol.ItemsMessage{protocol.ActionGet, []int{1, 2, 3, 5}}
+		data, _ := msg.Marshal()
+		resp, err := http.Post("http://"+addr+"/take", "application/json", bytes.NewReader(data))
+		if err != nil {
+			log.Printf("Error taking stuff from machine at %s, error: %s\n", addr, err)
+		}
+		defer resp.Body.Close()
 	}
 }
 
@@ -61,7 +80,6 @@ func discoverMachines(machines *RemoteMachines) {
 
 	buf := make([]byte, 1024)
 	for {
-		// log.Println("Reading next UDP message")
 		n, _, err := conn.ReadFrom(buf[:])
 		if err != nil {
 			log.Println(err)
