@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"io/ioutil"
 	"log"
 	"net"
@@ -9,7 +10,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"nvm.ga/mastersofcode/golang_2019/stock_distributed/machine/protocol"
 )
 
 const invitationTimeout = 500 * time.Millisecond
@@ -31,17 +31,18 @@ func main() {
 		if err != nil {
 			log.Println("Error reading request data -- take items")
 		}
-		msg, err := protocol.Unmarshal(body)
+		var items []int
+		err = json.Unmarshal(body, &items)
 		if err != nil {
 			log.Println("Error parsing server request -- take items " + err.Error())
 			c.JSON(400, "Invalid request")
 			return
 		}
-		log.Printf("taking items: %v\n", msg.Items)
+		log.Printf("taking items: %v\n", items)
 
 		c.JSON(http.StatusOK, gin.H{
 			"status": "fine",
-			"items":  msg.Items,
+			"items":  items,
 		})
 	})
 	r.Run(":" + port)

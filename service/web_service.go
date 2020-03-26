@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"log"
 	"net"
 	"net/http"
@@ -9,7 +10,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"nvm.ga/mastersofcode/golang_2019/stock_distributed/machine/protocol"
 )
 
 const discoverTimeout = 500 * time.Millisecond
@@ -58,8 +58,8 @@ func takeItems(machines *RemoteMachines) {
 	machines.mux.Lock()
 	defer machines.mux.Unlock()
 	for addr := range machines.items {
-		msg := &protocol.ItemsMessage{protocol.ActionGet, []int{1, 2, 3, 5}}
-		data, _ := msg.Marshal()
+		msg := []int{1, 2, 3, 5}
+		data, _ := json.Marshal(msg)
 		resp, err := http.Post("http://"+addr+"/take", "application/json", bytes.NewReader(data))
 		if err != nil {
 			log.Printf("Error taking stuff from machine at %s, error: %s\n", addr, err)
