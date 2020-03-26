@@ -40,11 +40,17 @@ func greetWarehouses(warehouses *Warehouses) {
 	}
 }
 
+// todo maybe add method to check which warehouses are still
+// alive
+// maybe make an infinite loop that will periodically check on every warehouse
+// and remove those that are dead
+
 // simulate taking items: send take item requests to all available warehouses
 func takeItems(warehouses *Warehouses) {
 	warehouses.mux.Lock()
 	defer warehouses.mux.Unlock()
 	for addr := range warehouses.items {
+		// todo: move this to requests
 		msg := []int{1, 2, 3, 5}
 		data, _ := json.Marshal(msg)
 		resp, err := http.Post("http://"+addr+"/take", "application/json", bytes.NewReader(data))
@@ -54,3 +60,18 @@ func takeItems(warehouses *Warehouses) {
 		defer resp.Body.Close()
 	}
 }
+
+// todo: implement taking items
+// look which warehouses have required items and can satisfy
+// the request
+// for now just take as much items as possible from every warehouse
+// (eventually port our search algorithm to determine from which warehouses to)
+
+// if something breaks down in the process, ignore the warehouse with error
+
+// if we cannot satisfy the order after exhausting all the warehouses, put the order
+// on pending
+
+// todo: add orders and order status checking
+
+// todo: add order persistence
