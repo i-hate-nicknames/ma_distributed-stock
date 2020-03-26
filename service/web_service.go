@@ -36,11 +36,7 @@ func greetWarehouses(warehouses *Warehouses) {
 	warehouses.mux.Lock()
 	defer warehouses.mux.Unlock()
 	for addr := range warehouses.items {
-		resp, err := http.Get("http://" + addr + "/hello")
-		if err != nil {
-			log.Printf("Error greeting warehouse at %s, error: %s\n", addr, err)
-		}
-		defer resp.Body.Close()
+		callWarehouse(addr, "hello")
 	}
 }
 

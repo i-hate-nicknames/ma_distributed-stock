@@ -2,10 +2,8 @@ package main
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"log"
 	"net"
-	"net/http"
 	"sync"
 	"time"
 )
@@ -58,21 +56,15 @@ func addWarehouse(address string, warehouses *Warehouses) {
 
 // send request to the given warehouse and add
 func updateWarehouseItems(address string, warehouses *Warehouses) {
-	resp, err := http.Get("http://" + address + "/getItems")
-	if err != nil {
-		log.Printf("Error getting warehouse items, address: %s, error: %s\n", address, err)
-		return
-	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.Printf("Error reading response data: %s\n", err)
-		return
-	}
 	var items []int
+	body, err := callWarehouse(address, "getItems")
+	if err != nil {
+		log.Println(err)
+		return
+	}
 	err = json.Unmarshal(body, &items)
 	if err != nil {
-		log.Printf("Malformed response: %s\n", err)
+		log.Printf("Malformed response from %s: %s", address, err)
 		return
 	}
 	warehouses.mux.Lock()
