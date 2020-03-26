@@ -9,11 +9,15 @@ import (
 
 const discoverTimeout = 500 * time.Millisecond
 
+// Warehouses map warehouse address to
+// the items that it
 type Warehouses struct {
 	mux   sync.Mutex
 	items map[string][]int
 }
 
+// Listen to active warehouses over UDP
+// and add new warehouses
 func discoverWarehouses(warehouses *Warehouses) {
 	conn, err := net.ListenUDP("udp", &net.UDPAddr{
 		Port: 3000,
@@ -35,6 +39,7 @@ func discoverWarehouses(warehouses *Warehouses) {
 	}
 }
 
+// Add a warehouse located by this address to the list of warehouses
 func addWarehouse(address string, warehouses *Warehouses) {
 	warehouses.mux.Lock()
 	defer warehouses.mux.Unlock()
@@ -42,7 +47,6 @@ func addWarehouse(address string, warehouses *Warehouses) {
 		// warehouse is already added
 		return
 	}
-	// todo: parse message and take items from there
 	items := make([]int, 0)
 	warehouses.items[address] = items
 	log.Printf("Added new warehouse with the following items %v\n", items)

@@ -17,7 +17,7 @@ func main() {
 	r := gin.Default()
 	r.GET("/hello", func(c *gin.Context) {
 		log.Println("Greeting all warehouses")
-		greetMachines(warehouses)
+		greetWarehouses(warehouses)
 		c.JSON(http.StatusNoContent, gin.H{})
 	})
 	r.GET("/", func(c *gin.Context) {
@@ -31,7 +31,8 @@ func main() {
 	r.Run(":8001")
 }
 
-func greetMachines(warehouses *Warehouses) {
+// Send greeting to every warehouse to test connection
+func greetWarehouses(warehouses *Warehouses) {
 	warehouses.mux.Lock()
 	defer warehouses.mux.Unlock()
 	for addr := range warehouses.items {
