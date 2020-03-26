@@ -45,6 +45,9 @@ func main() {
 			"items":  items,
 		})
 	})
+	r.GET("/getItems", func(c *gin.Context) {
+		c.JSON(http.StatusOK, []int{1, 2, 3})
+	})
 	r.Run(":" + port)
 }
 
