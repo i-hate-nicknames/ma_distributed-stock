@@ -1,7 +1,6 @@
 package service
 
 import (
-	"encoding/json"
 	"log"
 	"net"
 	"sync"
@@ -51,22 +50,16 @@ func addWarehouse(address string, warehouses *Warehouses) {
 	items := make([]int, 0)
 	warehouses.items[address] = items
 	log.Printf("Added new warehouse by the address: %s\n", address)
+	// todo: maybe perform grpc items call synchronously?
+	// the only point of doing it async if we add new warehouses very often
+	// and don't want this process to be blocked - highly unlikely
 	go updateWarehouseItems(address, warehouses)
 }
 
 // send request to the given warehouse and add
 func updateWarehouseItems(address string, warehouses *Warehouses) {
 	var items []int
-	body, err := callWarehouse(address, "getItems")
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	err = json.Unmarshal(body, &items)
-	if err != nil {
-		log.Printf("Malformed response from %s: %s", address, err)
-		return
-	}
+	// todo: perform grpc call here
 	warehouses.mux.Lock()
 	defer warehouses.mux.Unlock()
 	warehouses.items[address] = items

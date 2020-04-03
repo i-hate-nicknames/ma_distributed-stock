@@ -1,9 +1,7 @@
 package service
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -57,13 +55,7 @@ func takeItems(warehouses *Warehouses) {
 	defer warehouses.mux.Unlock()
 	for addr := range warehouses.items {
 		// todo: move this to requests
-		msg := []int{1, 2, 3, 5}
-		data, _ := json.Marshal(msg)
-		resp, err := http.Post("http://"+addr+"/take", "application/json", bytes.NewReader(data))
-		if err != nil {
-			log.Printf("Error taking stuff from warehouse at %s, error: %s\n", addr, err)
-		}
-		defer resp.Body.Close()
+		log.Println("Taking items from", addr)
 	}
 }
 
@@ -81,6 +73,8 @@ func takeItems(warehouses *Warehouses) {
 // todo: add orders and order status checking
 
 // todo: add order persistence
+
+// todo: move grpc client code to a separate file
 
 // GetClient attempts to dial the specified address flag and returns a service
 // client and its underlying connection. If it is unable to make a connection,
