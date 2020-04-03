@@ -13,14 +13,14 @@ import (
 )
 
 func StartService() {
-	items := make(map[string][]int, 0)
-	warehouses := &Warehouses{items: items}
-	go discoverWarehouses(warehouses)
+	warehouses := make(map[string][]int, 0)
+	addressBook := &AddressBook{warehouses: warehouses}
+	go discoverWarehouses(addressBook)
 
 	r := gin.Default()
 	r.GET("/hello", func(c *gin.Context) {
 		log.Println("Greeting all warehouses")
-		greetWarehouses(warehouses)
+		greetWarehouses(addressBook)
 		c.JSON(http.StatusNoContent, gin.H{})
 	})
 	r.GET("/", func(c *gin.Context) {
@@ -29,16 +29,16 @@ func StartService() {
 		})
 	})
 	r.GET("/takeSome", func(c *gin.Context) {
-		takeItems(warehouses)
+		takeItems(addressBook)
 	})
 	r.Run(":8001")
 }
 
 // Send greeting to every warehouse to test connection
-func greetWarehouses(warehouses *Warehouses) {
-	warehouses.mux.Lock()
-	defer warehouses.mux.Unlock()
-	for addr := range warehouses.items {
+func greetWarehouses(addressBook *AddressBook) {
+	addressBook.mux.Lock()
+	defer addressBook.mux.Unlock()
+	for addr := range addressBook.warehouses {
 		ctx := context.Background()
 		doHello(ctx, addr)
 	}
@@ -50,10 +50,10 @@ func greetWarehouses(warehouses *Warehouses) {
 // and remove those that are dead
 
 // simulate taking items: send take item requests to all available warehouses
-func takeItems(warehouses *Warehouses) {
-	warehouses.mux.Lock()
-	defer warehouses.mux.Unlock()
-	for addr := range warehouses.items {
+func takeItems(addressBook *AddressBook) {
+	addressBook.mux.Lock()
+	defer addressBook.mux.Unlock()
+	for addr := range addressBook.warehouses {
 		// todo: move this to requests
 		log.Println("Taking items from", addr)
 	}
