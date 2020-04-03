@@ -1,53 +1,33 @@
 package warehouse
 
 import (
-	"encoding/json"
-	"io/ioutil"
+	"context"
+	"fmt"
 	"log"
 	"net"
-	"net/http"
 	"os"
 	"time"
 
-	"github.com/gin-gonic/gin"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	api "nvm.ga/mastersofcode/golang_2019/stock_distributed/api"
 )
 
 const invitationTimeout = 500 * time.Millisecond
+
+var itemList = &api.ItemList{
+	Items: []int64{1, 2, 3, 4, 5},
+}
 
 func StartWarehouse(port string) {
 	if len(os.Args) != 2 {
 		log.Fatal("Please, provide port to listen on as an argument")
 	}
+	fmt.Println(len(itemList.Items))
 	addr := "127.0.0.1:" + port
 	go sendInvitations(addr)
-	r := gin.Default()
-	r.GET("/hello", func(c *gin.Context) {
-		log.Println("Stock center contaced us!")
-		c.JSON(http.StatusNoContent, gin.H{})
-	})
-	r.POST("/take", func(c *gin.Context) {
-		body, err := ioutil.ReadAll(c.Request.Body)
-		if err != nil {
-			log.Println("Error reading request data -- take items")
-		}
-		var items []int
-		err = json.Unmarshal(body, &items)
-		if err != nil {
-			log.Println("Error parsing server request -- take items " + err.Error())
-			c.JSON(400, "Invalid request")
-			return
-		}
-		log.Printf("taking items: %v\n", items)
-
-		c.JSON(http.StatusOK, gin.H{
-			"status": "fine",
-			"items":  items,
-		})
-	})
-	r.GET("/getItems", func(c *gin.Context) {
-		c.JSON(http.StatusOK, []int{1, 2, 3})
-	})
-	r.Run(":" + port)
+	startGrpcServer(port)
 }
 
 // continuously broadcast invitation message over UDP
@@ -62,4 +42,38 @@ func sendInvitations(myAddr string) {
 			log.Println(err)
 		}
 	}
+}
+
+func startGrpcServer(port string) {
+	addr := fmt.Sprintf("localhost:%s", port)
+	lis, err := net.Listen("tcp", addr)
+	if err != nil {
+		log.Fatalf("Failed to listen: %v", err)
+	}
+	var opts []grpc.ServerOption
+	server := grpc.NewServer(opts...)
+	fmt.Println("Running server on", addr)
+	service := whService{}
+	api.RegisterWarehouseServiceServer(server, &service)
+	server.Serve(lis)
+}
+
+// empty type that is used to implement grpc server interface
+type whService struct{}
+
+func (service *whService) PutItems(ctx context.Context, itemList *api.ItemList) (*api.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "Not implemented")
+}
+
+func (service *whService) TakeItems(ctx context.Context, itemList *api.ItemList) (*api.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "Not implemented")
+}
+
+func (service *whService) GetItems(ctx context.Context, empty *api.Empty) (*api.ItemList, error) {
+	return nil, status.Errorf(codes.Unimplemented, "Not implemented")
+}
+
+func (service *whService) Hello(ctx context.Context, text *api.Text) (*api.Text, error) {
+	txt := text.GetText()
+	return &api.Text{Text: fmt.Sprintln("Hello there", txt)}, nil
 }
