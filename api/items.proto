@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+service WarehouseService {
+    rpc PutItems (ItemList) returns (Empty);
+    rpc TakeItems (ItemList) returns (Empty);
+    rpc GetItems (Empty) returns (ItemList);
+    rpc Hello (Text) returns (Text);
+}
+
+message ItemList {
+    repeated int64 items = 1;
+}
+
+message Empty {}
+
+message Text {
+    string text = 1;
+}
