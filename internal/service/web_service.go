@@ -2,11 +2,16 @@ package service
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"google.golang.org/grpc"
+	api "nvm.ga/mastersofcode/golang_2019/stock_distributed/api"
 )
 
 func StartService() {
@@ -36,7 +41,8 @@ func greetWarehouses(warehouses *Warehouses) {
 	warehouses.mux.Lock()
 	defer warehouses.mux.Unlock()
 	for addr := range warehouses.items {
-		callWarehouse(addr, "hello")
+		ctx := context.Background()
+		doHello(ctx, addr)
 	}
 }
 
@@ -75,3 +81,27 @@ func takeItems(warehouses *Warehouses) {
 // todo: add orders and order status checking
 
 // todo: add order persistence
+
+// GetClient attempts to dial the specified address flag and returns a service
+// client and its underlying connection. If it is unable to make a connection,
+// it dies.
+func GetClient(address string) (*grpc.ClientConn, api.WarehouseServiceClient) {
+	conn, err := grpc.Dial(address, grpc.WithTimeout(5*time.Second), grpc.WithInsecure())
+	if err != nil {
+		log.Fatalf("did not connect: %v", err)
+	}
+	return conn, api.NewWarehouseServiceClient(conn)
+}
+
+// doList is a basic wrapper around the corresponding book service's RPC.
+// It parses the provided arguments, calls the service, and prints the
+// response. If any errors are encountered, it dies.
+func doHello(ctx context.Context, address string) {
+	conn, client := GetClient(address)
+	defer conn.Close()
+	rs, err := client.Hello(ctx, &api.Text{Text: "hey"})
+	if err != nil {
+		log.Fatalf("List books: %v", err)
+	}
+	fmt.Printf("Server replied to our greeting: %s\n", rs.GetText())
+}
