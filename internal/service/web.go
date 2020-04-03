@@ -12,11 +12,7 @@ import (
 	api "nvm.ga/mastersofcode/golang_2019/stock_distributed/api"
 )
 
-func StartService() {
-	warehouses := make(map[string][]int, 0)
-	addressBook := &AddressBook{warehouses: warehouses}
-	go discoverWarehouses(addressBook)
-
+func startServer(ctx context.Context, port string, addressBook *AddressBook) {
 	r := gin.Default()
 	r.GET("/hello", func(c *gin.Context) {
 		log.Println("Greeting all warehouses")
@@ -31,7 +27,26 @@ func StartService() {
 	r.GET("/takeSome", func(c *gin.Context) {
 		takeItems(addressBook)
 	})
-	r.Run(":8001")
+	r.Run(":" + port)
+}
+
+// todo: implement taking items
+// look which warehouses have required items and can satisfy
+// the request
+// for now just take as much items as possible from every warehouse
+// (eventually port our search algorithm to determine from which warehouses to)
+// if something breaks down in the process, ignore the warehouse with error
+// if we cannot satisfy the order after exhausting all the warehouses, put the order
+// on pending
+
+// simulate taking items: send take item requests to all available warehouses
+func takeItems(addressBook *AddressBook) {
+	addressBook.mux.Lock()
+	defer addressBook.mux.Unlock()
+	for addr := range addressBook.warehouses {
+		// todo: move this to requests
+		log.Println("Taking items from", addr)
+	}
 }
 
 // Send greeting to every warehouse to test connection
@@ -44,38 +59,6 @@ func greetWarehouses(addressBook *AddressBook) {
 	}
 }
 
-// todo maybe add method to check which warehouses are still
-// alive
-// maybe make an infinite loop that will periodically check on every warehouse
-// and remove those that are dead
-
-// simulate taking items: send take item requests to all available warehouses
-func takeItems(addressBook *AddressBook) {
-	addressBook.mux.Lock()
-	defer addressBook.mux.Unlock()
-	for addr := range addressBook.warehouses {
-		// todo: move this to requests
-		log.Println("Taking items from", addr)
-	}
-}
-
-// todo: implement taking items
-// look which warehouses have required items and can satisfy
-// the request
-// for now just take as much items as possible from every warehouse
-// (eventually port our search algorithm to determine from which warehouses to)
-
-// if something breaks down in the process, ignore the warehouse with error
-
-// if we cannot satisfy the order after exhausting all the warehouses, put the order
-// on pending
-
-// todo: add orders and order status checking
-
-// todo: add order persistence
-
-// todo: move grpc client code to a separate file
-
 // GetClient attempts to dial the specified address flag and returns a service
 // client and its underlying connection. If it is unable to make a connection,
 // it dies.
@@ -87,7 +70,7 @@ func GetClient(address string) (*grpc.ClientConn, api.WarehouseServiceClient) {
 	return conn, api.NewWarehouseServiceClient(conn)
 }
 
-// doList is a basic wrapper around the corresponding book service's RPC.
+// doHello is a basic wrapper around the corresponding service's RPC.
 // It parses the provided arguments, calls the service, and prints the
 // response. If any errors are encountered, it dies.
 func doHello(ctx context.Context, address string) {
