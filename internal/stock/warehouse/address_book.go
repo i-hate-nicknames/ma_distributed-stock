@@ -16,13 +16,16 @@ type AddressBook struct {
 	Warehouses map[string][]int
 }
 
+// MakeAddressBook makes a single instance of an address book
 func MakeAddressBook() *AddressBook {
 	warehouses := make(map[string][]int, 0)
 	return &AddressBook{Warehouses: warehouses}
 }
 
-// Listen to active warehouses over UDP
-// and add new warehouses
+// DiscoverWarehouses starts listening for invitation messages that active
+// warehouses send over UDP. It then adds new warehouses to the address book
+// This is a blocking operation that blocks indefinitely
+// todo: add context for cancelation
 func DiscoverWarehouses(addressBook *AddressBook) {
 	conn, err := net.ListenUDP("udp", &net.UDPAddr{
 		Port: 3000,

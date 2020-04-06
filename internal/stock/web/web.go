@@ -9,6 +9,8 @@ import (
 	wh "nvm.ga/mastersofcode/golang_2019/stock_distributed/internal/stock/warehouse"
 )
 
+// StartServer starts a web server that listens to incoming requests and performs
+// corresponding actions using available warehouses
 func StartServer(ctx context.Context, port string, addressBook *wh.AddressBook) {
 	r := gin.Default()
 	r.GET("/hello", func(c *gin.Context) {

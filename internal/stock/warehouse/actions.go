@@ -10,7 +10,7 @@ import (
 	api "nvm.ga/mastersofcode/golang_2019/stock_distributed/api"
 )
 
-// simulate taking items: send take item requests to all available warehouses
+// TakeItems simulates taking items: send take item requests to all available warehouses
 func TakeItems(addressBook *AddressBook) {
 	addressBook.Mux.Lock()
 	defer addressBook.Mux.Unlock()
@@ -20,7 +20,7 @@ func TakeItems(addressBook *AddressBook) {
 	}
 }
 
-// Send greeting to every warehouse to test connection
+// GreetWarehouses sends greeting to every warehouse to test connection
 func GreetWarehouses(addressBook *AddressBook) {
 	addressBook.Mux.Lock()
 	defer addressBook.Mux.Unlock()
@@ -53,3 +53,5 @@ func doHello(ctx context.Context, address string) {
 	}
 	fmt.Printf("Server replied to our greeting: %s\n", rs.GetText())
 }
+
+// todo: add other actions like taking items or getting item list
