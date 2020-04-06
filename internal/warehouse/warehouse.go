@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"os"
 	"time"
 
 	"google.golang.org/grpc"
@@ -16,15 +15,10 @@ import (
 
 const invitationTimeout = 500 * time.Millisecond
 
-var itemList = &api.ItemList{
-	Items: []int64{1, 2, 3, 4, 5},
-}
+var itemList = &api.ItemList{}
 
-func StartWarehouse(port string) {
-	if len(os.Args) != 2 {
-		log.Fatal("Please, provide port to listen on as an argument")
-	}
-	fmt.Println(len(itemList.Items))
+func StartWarehouse(port string, items []int64) {
+	itemList.Items = items
 	addr := "127.0.0.1:" + port
 	go sendInvitations(addr)
 	startGrpcServer(port)
