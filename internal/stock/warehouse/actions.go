@@ -45,3 +45,13 @@ func doGetItems(ctx context.Context, address string) ([]int64, error) {
 	}
 	return rs.GetItems(), nil
 }
+
+func doTakeItems(ctx context.Context, address string, items []int64) error {
+	conn, client := getClient(address)
+	defer conn.Close()
+	_, err := client.TakeItems(ctx, &api.ItemList{Items: items})
+	if err != nil {
+		return fmt.Errorf("take items from %s: %v", address, err)
+	}
+	return nil
+}

@@ -69,9 +69,14 @@ func addWarehouse(address string, addresBook *AddressBook) {
 func TakeItems(addressBook *AddressBook) {
 	addressBook.Mux.Lock()
 	defer addressBook.Mux.Unlock()
+	toTake := []int64{1, 2}
 	for addr := range addressBook.Warehouses {
-		// todo: move this to requests
-		log.Println("Taking items from", addr)
+		log.Printf("Taking %v from %s\n", toTake, addr)
+		ctx := context.Background()
+		err := doTakeItems(ctx, addr, toTake)
+		if err != nil {
+			log.Printf(err.Error())
+		}
 	}
 }
 
