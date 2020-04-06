@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"sync"
 	"time"
 
 	"google.golang.org/grpc"
@@ -17,13 +18,14 @@ const invitationTimeout = 500 * time.Millisecond
 
 // todo: instead of itemlist store items internally
 // in a LIFO machine
-var itemList = &api.ItemList{}
+var myItems = &api.ItemList{}
+var mux sync.Mutex
 
 // StartWarehouse starts a single warehouse instance. This warehouse will
 // continuously broadcast invitations via UDP
 // Also it starts a grpc server for interaction with items in this warehouse
 func StartWarehouse(port string, items []int64) {
-	itemList.Items = items
+	myItems.Items = items
 	addr := "127.0.0.1:" + port
 	go sendInvitations(addr)
 	startGrpcServer(port)
@@ -69,12 +71,31 @@ func (service *whService) PutItems(ctx context.Context, itemList *api.ItemList) 
 // TakeItems retrieves multiple items from this warehouse, while removing them locally
 // If items in the request cannot be satisfied in the order they are provided an error is returned
 func (service *whService) TakeItems(ctx context.Context, itemList *api.ItemList) (*api.Empty, error) {
+	mux.Lock()
+	defer mux.Unlock()
+	requestItems := itemList.GetItems()
+	if len(requestItems) > len(myItems.Items) {
+		return nil, status.Errorf(codes.FailedPrecondition, "Too few items in the warehouse")
+	}
+	i := 0
+	for _, item := range requestItems {
+		if i == len(requestItems)-1 {
+			myItems.Items = myItems.Items[i:]
+			return &api.Empty{}, nil
+		}
+		if item != myItems.Items[i] {
+			errorText := fmt.Sprintf("Items differ at %dth element: %v, %v", i, requestItems, myItems.Items)
+			return nil, status.Errorf(codes.FailedPrecondition, errorText)
+		}
+		i++
+	}
+
 	return nil, status.Errorf(codes.Unimplemented, "Not implemented")
 }
 
 // GetItems returns what items are available in this warehouse in the order they must be requested
 func (service *whService) GetItems(ctx context.Context, empty *api.Empty) (*api.ItemList, error) {
-	return itemList, nil
+	return myItems, nil
 }
 
 // Hello is a test method to check that grpc works properly
