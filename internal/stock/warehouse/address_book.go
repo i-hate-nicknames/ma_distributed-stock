@@ -1,6 +1,7 @@
 package warehouse
 
 import (
+	"context"
 	"log"
 	"net"
 	"sync"
@@ -13,12 +14,12 @@ const discoverTimeout = 500 * time.Millisecond
 // the items that it has
 type AddressBook struct {
 	Mux        sync.Mutex
-	Warehouses map[string][]int
+	Warehouses map[string][]int64
 }
 
 // MakeAddressBook makes a single instance of an address book
 func MakeAddressBook() *AddressBook {
-	warehouses := make(map[string][]int, 0)
+	warehouses := make(map[string][]int64, 0)
 	return &AddressBook{Warehouses: warehouses}
 }
 
@@ -55,7 +56,7 @@ func addWarehouse(address string, addresBook *AddressBook) {
 		// warehouse is already added
 		return
 	}
-	items := make([]int, 0)
+	items := make([]int64, 0)
 	addresBook.Warehouses[address] = items
 	log.Printf("Added new warehouse by the address: %s\n", address)
 	// todo: maybe perform grpc items call synchronously?
@@ -64,12 +65,37 @@ func addWarehouse(address string, addresBook *AddressBook) {
 	go updateWarehouseItems(address, addresBook)
 }
 
+// TakeItems simulates taking items: send take item requests to all available warehouses
+func TakeItems(addressBook *AddressBook) {
+	addressBook.Mux.Lock()
+	defer addressBook.Mux.Unlock()
+	for addr := range addressBook.Warehouses {
+		// todo: move this to requests
+		log.Println("Taking items from", addr)
+	}
+}
+
+// GreetWarehouses sends greeting to every warehouse to test connection
+func GreetWarehouses(addressBook *AddressBook) {
+	addressBook.Mux.Lock()
+	defer addressBook.Mux.Unlock()
+	for addr := range addressBook.Warehouses {
+		ctx := context.Background()
+		doHello(ctx, addr)
+	}
+}
+
 // send request to the given warehouse and add
 func updateWarehouseItems(address string, addresBook *AddressBook) {
-	var items []int
-	// todo: perform grpc call here
 	addresBook.Mux.Lock()
 	defer addresBook.Mux.Unlock()
+	ctx := context.Background()
+	items, err := doGetItems(ctx, address)
+	if err != nil {
+		log.Println(err)
+		delete(addresBook.Warehouses, address)
+		return
+	}
 	addresBook.Warehouses[address] = items
 	log.Printf("Updated items for %s, items: %v\n", address, items)
 }
