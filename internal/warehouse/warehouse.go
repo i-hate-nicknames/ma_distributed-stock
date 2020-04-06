@@ -74,7 +74,7 @@ func (service *whService) TakeItems(ctx context.Context, itemList *api.ItemList)
 
 // GetItems returns what items are available in this warehouse in the order they must be requested
 func (service *whService) GetItems(ctx context.Context, empty *api.Empty) (*api.ItemList, error) {
-	return nil, status.Errorf(codes.Unimplemented, "Not implemented")
+	return itemList, nil
 }
 
 // Hello is a test method to check that grpc works properly
