@@ -1,4 +1,4 @@
-package service
+package warehouse
 
 import (
 	"log"
@@ -12,13 +12,13 @@ const discoverTimeout = 500 * time.Millisecond
 // AddressBook map warehouse address to
 // the items that it has
 type AddressBook struct {
-	mux        sync.Mutex
-	warehouses map[string][]int
+	Mux        sync.Mutex
+	Warehouses map[string][]int
 }
 
 // Listen to active warehouses over UDP
 // and add new warehouses
-func discoverWarehouses(addressBook *AddressBook) {
+func DiscoverWarehouses(addressBook *AddressBook) {
 	conn, err := net.ListenUDP("udp", &net.UDPAddr{
 		Port: 3000,
 		IP:   net.ParseIP("0.0.0.0"),
@@ -41,14 +41,14 @@ func discoverWarehouses(addressBook *AddressBook) {
 
 // Add a warehouse located by this address to the list of warehouses
 func addWarehouse(address string, addresBook *AddressBook) {
-	addresBook.mux.Lock()
-	defer addresBook.mux.Unlock()
-	if _, ok := addresBook.warehouses[address]; ok {
+	addresBook.Mux.Lock()
+	defer addresBook.Mux.Unlock()
+	if _, ok := addresBook.Warehouses[address]; ok {
 		// warehouse is already added
 		return
 	}
 	items := make([]int, 0)
-	addresBook.warehouses[address] = items
+	addresBook.Warehouses[address] = items
 	log.Printf("Added new warehouse by the address: %s\n", address)
 	// todo: maybe perform grpc items call synchronously?
 	// the only point of doing it async if we add new warehouses very often
@@ -60,8 +60,8 @@ func addWarehouse(address string, addresBook *AddressBook) {
 func updateWarehouseItems(address string, addresBook *AddressBook) {
 	var items []int
 	// todo: perform grpc call here
-	addresBook.mux.Lock()
-	defer addresBook.mux.Unlock()
-	addresBook.warehouses[address] = items
+	addresBook.Mux.Lock()
+	defer addresBook.Mux.Unlock()
+	addresBook.Warehouses[address] = items
 	log.Printf("Updated items for %s, items: %v\n", address, items)
 }

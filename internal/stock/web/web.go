@@ -1,4 +1,4 @@
-package service
+package web
 
 import (
 	"context"
@@ -10,9 +10,10 @@ import (
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
 	api "nvm.ga/mastersofcode/golang_2019/stock_distributed/api"
+	wh "nvm.ga/mastersofcode/golang_2019/stock_distributed/internal/stock/warehouse"
 )
 
-func startServer(ctx context.Context, port string, addressBook *AddressBook) {
+func StartServer(ctx context.Context, port string, addressBook *wh.AddressBook) {
 	r := gin.Default()
 	r.GET("/hello", func(c *gin.Context) {
 		log.Println("Greeting all warehouses")
@@ -40,20 +41,20 @@ func startServer(ctx context.Context, port string, addressBook *AddressBook) {
 // on pending
 
 // simulate taking items: send take item requests to all available warehouses
-func takeItems(addressBook *AddressBook) {
-	addressBook.mux.Lock()
-	defer addressBook.mux.Unlock()
-	for addr := range addressBook.warehouses {
+func takeItems(addressBook *wh.AddressBook) {
+	addressBook.Mux.Lock()
+	defer addressBook.Mux.Unlock()
+	for addr := range addressBook.Warehouses {
 		// todo: move this to requests
 		log.Println("Taking items from", addr)
 	}
 }
 
 // Send greeting to every warehouse to test connection
-func greetWarehouses(addressBook *AddressBook) {
-	addressBook.mux.Lock()
-	defer addressBook.mux.Unlock()
-	for addr := range addressBook.warehouses {
+func greetWarehouses(addressBook *wh.AddressBook) {
+	addressBook.Mux.Lock()
+	defer addressBook.Mux.Unlock()
+	for addr := range addressBook.Warehouses {
 		ctx := context.Background()
 		doHello(ctx, addr)
 	}

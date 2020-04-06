@@ -1,15 +1,18 @@
-package service
+package stock
 
 import (
 	"context"
+
+	wh "nvm.ga/mastersofcode/golang_2019/stock_distributed/internal/stock/warehouse"
+	"nvm.ga/mastersofcode/golang_2019/stock_distributed/internal/stock/web"
 )
 
 func StartService() {
 	warehouses := make(map[string][]int, 0)
-	addressBook := &AddressBook{warehouses: warehouses}
+	addressBook := &wh.AddressBook{Warehouses: warehouses}
 	ctx, _ := context.WithCancel(context.Background())
-	go discoverWarehouses(addressBook)
-	go startServer(ctx, "8001", addressBook)
+	go wh.DiscoverWarehouses(addressBook)
+	go web.StartServer(ctx, "8001", addressBook)
 
 	// todo: listen to cancellation signals
 	done := make(chan struct{}, 1)
