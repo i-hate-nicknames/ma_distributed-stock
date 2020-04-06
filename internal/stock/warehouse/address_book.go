@@ -16,6 +16,11 @@ type AddressBook struct {
 	Warehouses map[string][]int
 }
 
+func MakeAddressBook() *AddressBook {
+	warehouses := make(map[string][]int, 0)
+	return &AddressBook{Warehouses: warehouses}
+}
+
 // Listen to active warehouses over UDP
 // and add new warehouses
 func DiscoverWarehouses(addressBook *AddressBook) {

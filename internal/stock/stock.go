@@ -8,8 +8,7 @@ import (
 )
 
 func StartService() {
-	warehouses := make(map[string][]int, 0)
-	addressBook := &wh.AddressBook{Warehouses: warehouses}
+	addressBook := wh.MakeAddressBook()
 	ctx, _ := context.WithCancel(context.Background())
 	go wh.DiscoverWarehouses(addressBook)
 	go web.StartServer(ctx, "8001", addressBook)
