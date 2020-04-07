@@ -15,14 +15,14 @@ const discoverTimeout = 500 * time.Millisecond
 // but may later get invalid, e.g. when a warehouse goes down or
 // somehow loses items
 type Catalog struct {
-	Mux        sync.Mutex
-	Warehouses map[string][]int64
+	mux        sync.Mutex
+	warehouses map[string][]int64
 }
 
 // MakeCatalog makes a single instance of an address book
 func MakeCatalog() *Catalog {
 	warehouses := make(map[string][]int64, 0)
-	return &Catalog{Warehouses: warehouses}
+	return &Catalog{warehouses: warehouses}
 }
 
 // DiscoverWarehouses starts listening for invitation messages that active
@@ -52,14 +52,14 @@ func DiscoverWarehouses(catalog *Catalog) {
 
 // Add a warehouse located by this address to the list of warehouses
 func addWarehouse(address string, catalog *Catalog) {
-	catalog.Mux.Lock()
-	defer catalog.Mux.Unlock()
-	if _, ok := catalog.Warehouses[address]; ok {
+	catalog.mux.Lock()
+	defer catalog.mux.Unlock()
+	if _, ok := catalog.warehouses[address]; ok {
 		// warehouse is already added
 		return
 	}
 	items := make([]int64, 0)
-	catalog.Warehouses[address] = items
+	catalog.warehouses[address] = items
 	log.Printf("Added new warehouse by the address: %s\n", address)
 	go updateWarehouseItems(address, catalog)
 }
@@ -68,23 +68,23 @@ func addWarehouse(address string, catalog *Catalog) {
 func updateWarehouseItems(address string, catalog *Catalog) {
 	ctx := context.Background()
 	items, err := doGetItems(ctx, address)
-	catalog.Mux.Lock()
-	defer catalog.Mux.Unlock()
+	catalog.mux.Lock()
+	defer catalog.mux.Unlock()
 	if err != nil {
 		log.Println(err)
-		delete(catalog.Warehouses, address)
+		delete(catalog.warehouses, address)
 		return
 	}
-	catalog.Warehouses[address] = items
+	catalog.warehouses[address] = items
 	log.Printf("Updated items for %s, items: %v\n", address, items)
 }
 
 // TakeItems simulates taking items: send take item requests to all available warehouses
 func TakeItems(catalog *Catalog) {
-	catalog.Mux.Lock()
-	defer catalog.Mux.Unlock()
+	catalog.mux.Lock()
+	defer catalog.mux.Unlock()
 	toTake := []int64{1, 2}
-	for addr := range catalog.Warehouses {
+	for addr := range catalog.warehouses {
 		log.Printf("Taking %v from %s\n", toTake, addr)
 		ctx := context.Background()
 		err := doTakeItems(ctx, addr, toTake)
@@ -96,9 +96,9 @@ func TakeItems(catalog *Catalog) {
 
 // GreetWarehouses sends greeting to every warehouse to test connection
 func GreetWarehouses(catalog *Catalog) {
-	catalog.Mux.Lock()
-	defer catalog.Mux.Unlock()
-	for addr := range catalog.Warehouses {
+	catalog.mux.Lock()
+	defer catalog.mux.Unlock()
+	for addr := range catalog.warehouses {
 		ctx := context.Background()
 		doHello(ctx, addr)
 	}
