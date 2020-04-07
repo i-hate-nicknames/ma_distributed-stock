@@ -10,24 +10,26 @@ import (
 
 const discoverTimeout = 500 * time.Millisecond
 
-// AddressBook map warehouse address to
-// the items that it has
-type AddressBook struct {
+// Catalog maps warehouse address to its items
+// Each warehouse data is valid when it's added to the catalog
+// but may later get invalid, e.g. when a warehouse goes down or
+// somehow loses items
+type Catalog struct {
 	Mux        sync.Mutex
 	Warehouses map[string][]int64
 }
 
-// MakeAddressBook makes a single instance of an address book
-func MakeAddressBook() *AddressBook {
+// MakeCatalog makes a single instance of an address book
+func MakeCatalog() *Catalog {
 	warehouses := make(map[string][]int64, 0)
-	return &AddressBook{Warehouses: warehouses}
+	return &Catalog{Warehouses: warehouses}
 }
 
 // DiscoverWarehouses starts listening for invitation messages that active
 // warehouses send over UDP. It then adds new warehouses to the address book
 // This is a blocking operation that blocks indefinitely
 // todo: add context for cancelation
-func DiscoverWarehouses(addressBook *AddressBook) {
+func DiscoverWarehouses(catalog *Catalog) {
 	conn, err := net.ListenUDP("udp", &net.UDPAddr{
 		Port: 3000,
 		IP:   net.ParseIP("0.0.0.0"),
@@ -43,46 +45,46 @@ func DiscoverWarehouses(addressBook *AddressBook) {
 		if err != nil {
 			log.Println(err)
 		}
-		addWarehouse(string(buf[:n]), addressBook)
+		addWarehouse(string(buf[:n]), catalog)
 		time.Sleep(discoverTimeout)
 	}
 }
 
 // Add a warehouse located by this address to the list of warehouses
-func addWarehouse(address string, addresBook *AddressBook) {
-	addresBook.Mux.Lock()
-	defer addresBook.Mux.Unlock()
-	if _, ok := addresBook.Warehouses[address]; ok {
+func addWarehouse(address string, catalog *Catalog) {
+	catalog.Mux.Lock()
+	defer catalog.Mux.Unlock()
+	if _, ok := catalog.Warehouses[address]; ok {
 		// warehouse is already added
 		return
 	}
 	items := make([]int64, 0)
-	addresBook.Warehouses[address] = items
+	catalog.Warehouses[address] = items
 	log.Printf("Added new warehouse by the address: %s\n", address)
-	go updateWarehouseItems(address, addresBook)
+	go updateWarehouseItems(address, catalog)
 }
 
 // send request to the given warehouse and add
-func updateWarehouseItems(address string, addresBook *AddressBook) {
+func updateWarehouseItems(address string, catalog *Catalog) {
 	ctx := context.Background()
 	items, err := doGetItems(ctx, address)
-	addresBook.Mux.Lock()
-	defer addresBook.Mux.Unlock()
+	catalog.Mux.Lock()
+	defer catalog.Mux.Unlock()
 	if err != nil {
 		log.Println(err)
-		delete(addresBook.Warehouses, address)
+		delete(catalog.Warehouses, address)
 		return
 	}
-	addresBook.Warehouses[address] = items
+	catalog.Warehouses[address] = items
 	log.Printf("Updated items for %s, items: %v\n", address, items)
 }
 
 // TakeItems simulates taking items: send take item requests to all available warehouses
-func TakeItems(addressBook *AddressBook) {
-	addressBook.Mux.Lock()
-	defer addressBook.Mux.Unlock()
+func TakeItems(catalog *Catalog) {
+	catalog.Mux.Lock()
+	defer catalog.Mux.Unlock()
 	toTake := []int64{1, 2}
-	for addr := range addressBook.Warehouses {
+	for addr := range catalog.Warehouses {
 		log.Printf("Taking %v from %s\n", toTake, addr)
 		ctx := context.Background()
 		err := doTakeItems(ctx, addr, toTake)
@@ -93,10 +95,10 @@ func TakeItems(addressBook *AddressBook) {
 }
 
 // GreetWarehouses sends greeting to every warehouse to test connection
-func GreetWarehouses(addressBook *AddressBook) {
-	addressBook.Mux.Lock()
-	defer addressBook.Mux.Unlock()
-	for addr := range addressBook.Warehouses {
+func GreetWarehouses(catalog *Catalog) {
+	catalog.Mux.Lock()
+	defer catalog.Mux.Unlock()
+	for addr := range catalog.Warehouses {
 		ctx := context.Background()
 		doHello(ctx, addr)
 	}

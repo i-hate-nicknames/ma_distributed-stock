@@ -11,11 +11,11 @@ import (
 
 // StartServer starts a web server that listens to incoming requests and performs
 // corresponding actions using available warehouses
-func StartServer(ctx context.Context, port string, addressBook *wh.AddressBook) {
+func StartServer(ctx context.Context, port string, warehouseCatalog *wh.Catalog) {
 	r := gin.Default()
 	r.GET("/hello", func(c *gin.Context) {
 		log.Println("Greeting all warehouses")
-		wh.GreetWarehouses(addressBook)
+		wh.GreetWarehouses(warehouseCatalog)
 		c.JSON(http.StatusNoContent, gin.H{})
 	})
 	r.GET("/", func(c *gin.Context) {
@@ -24,7 +24,7 @@ func StartServer(ctx context.Context, port string, addressBook *wh.AddressBook) 
 		})
 	})
 	r.GET("/takeSome", func(c *gin.Context) {
-		wh.TakeItems(addressBook)
+		wh.TakeItems(warehouseCatalog)
 	})
 	r.Run(":" + port)
 }

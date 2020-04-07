@@ -8,14 +8,15 @@ import (
 )
 
 func main() {
-	addressBook := wh.MakeAddressBook()
-	ctx, _ := context.WithCancel(context.Background())
-	go wh.DiscoverWarehouses(addressBook)
-	go web.StartServer(ctx, "8001", addressBook)
+	catalog := wh.MakeCatalog()
+	ctx, cancel := context.WithCancel(context.Background())
+	go wh.DiscoverWarehouses(catalog)
+	go web.StartServer(ctx, "8001", catalog)
 
 	// todo: listen to cancellation signals
 	done := make(chan struct{}, 1)
 	<-done
+	cancel()
 }
 
 // todo maybe add method to check which warehouses are still
