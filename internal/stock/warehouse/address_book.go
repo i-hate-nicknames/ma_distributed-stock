@@ -59,10 +59,22 @@ func addWarehouse(address string, addresBook *AddressBook) {
 	items := make([]int64, 0)
 	addresBook.Warehouses[address] = items
 	log.Printf("Added new warehouse by the address: %s\n", address)
-	// todo: maybe perform grpc items call synchronously?
-	// the only point of doing it async if we add new warehouses very often
-	// and don't want this process to be blocked - highly unlikely
 	go updateWarehouseItems(address, addresBook)
+}
+
+// send request to the given warehouse and add
+func updateWarehouseItems(address string, addresBook *AddressBook) {
+	ctx := context.Background()
+	items, err := doGetItems(ctx, address)
+	addresBook.Mux.Lock()
+	defer addresBook.Mux.Unlock()
+	if err != nil {
+		log.Println(err)
+		delete(addresBook.Warehouses, address)
+		return
+	}
+	addresBook.Warehouses[address] = items
+	log.Printf("Updated items for %s, items: %v\n", address, items)
 }
 
 // TakeItems simulates taking items: send take item requests to all available warehouses
@@ -88,19 +100,4 @@ func GreetWarehouses(addressBook *AddressBook) {
 		ctx := context.Background()
 		doHello(ctx, addr)
 	}
-}
-
-// send request to the given warehouse and add
-func updateWarehouseItems(address string, addresBook *AddressBook) {
-	addresBook.Mux.Lock()
-	defer addresBook.Mux.Unlock()
-	ctx := context.Background()
-	items, err := doGetItems(ctx, address)
-	if err != nil {
-		log.Println(err)
-		delete(addresBook.Warehouses, address)
-		return
-	}
-	addresBook.Warehouses[address] = items
-	log.Printf("Updated items for %s, items: %v\n", address, items)
 }
