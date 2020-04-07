@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sync"
 
 	"github.com/gin-gonic/gin"
 	"nvm.ga/mastersofcode/golang_2019/stock_distributed/internal/stock/order"
@@ -12,13 +13,14 @@ import (
 )
 
 type takeItemsReq struct {
-	items []int64
+	Items []int64
 }
 
 // StartServer starts a web server that listens to incoming requests and performs
 // corresponding actions using available warehouses
 func StartServer(ctx context.Context, port string, catalog *wh.Catalog) {
 	r := gin.Default()
+	var takeMux sync.Mutex
 	r.GET("/hello", func(c *gin.Context) {
 		log.Println("Greeting all warehouses")
 		wh.GreetWarehouses(catalog)
@@ -33,6 +35,9 @@ func StartServer(ctx context.Context, port string, catalog *wh.Catalog) {
 		wh.TakeItems(catalog)
 	})
 	r.POST("/take", func(c *gin.Context) {
+		// lock take operation since it's not thread-safe
+		takeMux.Lock()
+		defer takeMux.Unlock()
 		take(c, catalog)
 	})
 	r.Run(":" + port)
@@ -45,8 +50,8 @@ func take(c *gin.Context, catalog *wh.Catalog) {
 		c.JSON(http.StatusBadRequest, gin.H{})
 		return
 	}
-	log.Printf("Taking items %v", req.items)
-	ord := &order.Order{Items: req.items}
+	log.Printf("Taking items %v", req.Items)
+	ord := &order.Order{Items: req.Items}
 	err = order.Process(ord, catalog)
 	if err != nil {
 		msg := fmt.Sprintf("Cannot execute the order: %s", err.Error())

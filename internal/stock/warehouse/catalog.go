@@ -2,6 +2,7 @@ package warehouse
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net"
 	"sync"
@@ -23,6 +24,24 @@ type Catalog struct {
 func MakeCatalog() *Catalog {
 	warehouses := make(map[string][]int64, 0)
 	return &Catalog{warehouses: warehouses}
+}
+
+// GetWarehouses returns all warehouses in this catalog
+func (c *Catalog) GetWarehouses() map[string][]int64 {
+	return c.warehouses
+}
+
+// PopItem removes first item from the specified warehouse
+func (c *Catalog) PopItem(address string) error {
+	wh, ok := c.warehouses[address]
+	if !ok {
+		return fmt.Errorf("warehouse %s not found", address)
+	}
+	if len(wh) == 0 {
+		return fmt.Errorf("warehouse %s is empty", address)
+	}
+	c.warehouses[address] = wh[1:]
+	return nil
 }
 
 // DiscoverWarehouses starts listening for invitation messages that active
