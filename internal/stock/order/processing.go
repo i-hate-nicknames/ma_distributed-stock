@@ -1,9 +1,13 @@
 package order
 
-import "nvm.ga/mastersofcode/golang_2019/stock_distributed/internal/stock/warehouse"
+import (
+	"fmt"
+
+	"nvm.ga/mastersofcode/golang_2019/stock_distributed/internal/stock/warehouse"
+)
 
 type Order struct {
-	items []int64
+	Items []int64
 }
 
 func Process(o *Order, catalog *warehouse.Catalog) error {
@@ -17,7 +21,7 @@ func Process(o *Order, catalog *warehouse.Catalog) error {
 // requestPlan holds addresses of warehouses from a catalog mapped to
 // list of items to request
 type requestPlan struct {
-	map[string][]int64
+	warehouses map[string][]int64
 }
 
 func calculatePlan(o *Order, catalog *warehouse.Catalog) (*requestPlan, error) {
