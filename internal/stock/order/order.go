@@ -27,6 +27,12 @@ type Order struct {
 	mux    sync.Mutex
 }
 
+// MakeRegistry creates an empty order registry
+func MakeRegistry() *Registry {
+	orders := make(map[uint]*Order)
+	return &Registry{orders: orders}
+}
+
 // MakeOrder creates new order with the given items, and assingns it an id
 func MakeOrder(items []int64) *Order {
 	orderCounter++
@@ -43,11 +49,11 @@ func (or *Registry) GetOrder(orderID uint) (*Order, bool) {
 }
 
 // SubmitOrder creates a new order and adds it to the registry
-// returns an assigned order id for the new order
-func (or *Registry) SubmitOrder(items []int64) uint {
+// returns an assigned order id for the new order or error
+func (or *Registry) SubmitOrder(items []int64) (uint, error) {
 	or.mux.Lock()
 	defer or.mux.Unlock()
 	order := MakeOrder(items)
 	or.orders[order.ID] = order
-	return order.ID
+	return order.ID, nil
 }

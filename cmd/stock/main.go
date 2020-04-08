@@ -12,7 +12,8 @@ func main() {
 	catalog := wh.MakeCatalog()
 	ctx, cancel := context.WithCancel(context.Background())
 	go wh.DiscoverWarehouses(catalog)
-	st := &stock.Stock{Warehouses: catalog, Orders: &order.Registry{}}
+
+	st := &stock.Stock{Warehouses: catalog, Orders: order.MakeRegistry()}
 	go stock.StartServer(ctx, "8001", st)
 
 	// todo: listen to cancellation signals

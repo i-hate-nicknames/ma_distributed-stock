@@ -12,7 +12,7 @@ import (
 	wh "nvm.ga/mastersofcode/golang_2019/stock_distributed/internal/stock/warehouse"
 )
 
-type takeItemsReq struct {
+type itemsReq struct {
 	Items []int64
 }
 
@@ -31,6 +31,10 @@ func StartServer(ctx context.Context, port string, stock *Stock) {
 			"status": "I am ok",
 		})
 	})
+
+	// todo: in future taking items will be achieved through orders
+	// which will be processed via scheduler, and these methods will
+	// be obsolete
 	r.GET("/takeSome", func(c *gin.Context) {
 		wh.TakeItems(stock.Warehouses)
 	})
@@ -40,11 +44,35 @@ func StartServer(ctx context.Context, port string, stock *Stock) {
 		defer takeMux.Unlock()
 		take(c, stock)
 	})
+
+	// Order management handlers
+	r.POST("/submit", func(c *gin.Context) {
+		var req itemsReq
+		err := c.BindJSON(&req)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{})
+			return
+		}
+		ID, err := stock.Orders.SubmitOrder(req.Items)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"message": "failed to create an order"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"orderId": ID})
+	})
+
+	r.GET("/getStatus", func(c *gin.Context) {
+
+	})
+
+	r.POST("/cancel", func(c *gin.Context) {
+
+	})
 	r.Run(":" + port)
 }
 
 func take(c *gin.Context, stock *Stock) {
-	var req takeItemsReq
+	var req itemsReq
 	err := c.BindJSON(&req)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{})
