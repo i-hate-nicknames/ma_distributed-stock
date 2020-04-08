@@ -3,15 +3,17 @@ package main
 import (
 	"context"
 
+	"nvm.ga/mastersofcode/golang_2019/stock_distributed/internal/stock"
+	"nvm.ga/mastersofcode/golang_2019/stock_distributed/internal/stock/order"
 	wh "nvm.ga/mastersofcode/golang_2019/stock_distributed/internal/stock/warehouse"
-	"nvm.ga/mastersofcode/golang_2019/stock_distributed/internal/stock/web"
 )
 
 func main() {
 	catalog := wh.MakeCatalog()
 	ctx, cancel := context.WithCancel(context.Background())
 	go wh.DiscoverWarehouses(catalog)
-	go web.StartServer(ctx, "8001", catalog)
+	st := &stock.Stock{Warehouses: catalog, Orders: &order.Registry{}}
+	go stock.StartServer(ctx, "8001", st)
 
 	// todo: listen to cancellation signals
 	done := make(chan struct{}, 1)

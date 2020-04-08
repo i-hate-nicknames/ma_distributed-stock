@@ -1,4 +1,4 @@
-package web
+package stock
 
 import (
 	"context"
@@ -18,12 +18,12 @@ type takeItemsReq struct {
 
 // StartServer starts a web server that listens to incoming requests and performs
 // corresponding actions using available warehouses
-func StartServer(ctx context.Context, port string, catalog *wh.Catalog) {
+func StartServer(ctx context.Context, port string, stock *Stock) {
 	r := gin.Default()
 	var takeMux sync.Mutex
 	r.GET("/hello", func(c *gin.Context) {
 		log.Println("Greeting all warehouses")
-		wh.GreetWarehouses(catalog)
+		wh.GreetWarehouses(stock.Warehouses)
 		c.JSON(http.StatusNoContent, gin.H{})
 	})
 	r.GET("/", func(c *gin.Context) {
@@ -32,18 +32,18 @@ func StartServer(ctx context.Context, port string, catalog *wh.Catalog) {
 		})
 	})
 	r.GET("/takeSome", func(c *gin.Context) {
-		wh.TakeItems(catalog)
+		wh.TakeItems(stock.Warehouses)
 	})
 	r.POST("/take", func(c *gin.Context) {
 		// lock take operation since it's not thread-safe
 		takeMux.Lock()
 		defer takeMux.Unlock()
-		take(c, catalog)
+		take(c, stock)
 	})
 	r.Run(":" + port)
 }
 
-func take(c *gin.Context, catalog *wh.Catalog) {
+func take(c *gin.Context, stock *Stock) {
 	var req takeItemsReq
 	err := c.BindJSON(&req)
 	if err != nil {
@@ -52,7 +52,7 @@ func take(c *gin.Context, catalog *wh.Catalog) {
 	}
 	log.Printf("Taking items %v", req.Items)
 	ord := &order.Order{Items: req.Items}
-	err = order.Process(ord, catalog)
+	err = order.Process(ord, stock.Warehouses)
 	if err != nil {
 		msg := fmt.Sprintf("Cannot execute the order: %s", err.Error())
 		c.JSON(http.StatusNotFound, gin.H{"message": msg})
