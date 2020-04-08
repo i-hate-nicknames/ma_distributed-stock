@@ -6,11 +6,6 @@ import (
 	"nvm.ga/mastersofcode/golang_2019/stock_distributed/internal/stock/warehouse"
 )
 
-// Order represents a user order for a set of items
-type Order struct {
-	Items []int64
-}
-
 // Process order: try finding order items in the warehouses in the catalog
 // if the order is satisfiable then carry out the order by requesting items
 // from the warehouses
