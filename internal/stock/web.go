@@ -16,6 +16,10 @@ type itemsReq struct {
 	Items []int64
 }
 
+type idReq struct {
+	Id uint
+}
+
 // StartServer starts a web server that listens to incoming requests and performs
 // corresponding actions using available warehouses
 func StartServer(ctx context.Context, port string, stock *Stock) {
@@ -62,6 +66,18 @@ func StartServer(ctx context.Context, port string, stock *Stock) {
 	})
 
 	r.GET("/getStatus", func(c *gin.Context) {
+		var req idReq
+		err := c.BindJSON(&req)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{})
+			return
+		}
+		ord, ok := stock.Orders.GetOrder(req.Id)
+		if !ok {
+			c.JSON(http.StatusNotFound, gin.H{})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"status": ord.Status})
 
 	})
 
