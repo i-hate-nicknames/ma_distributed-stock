@@ -1,6 +1,9 @@
 package order
 
-import "sync"
+import (
+	"fmt"
+	"sync"
+)
 
 const (
 	// StatusPending means the order is being processed or is paused
@@ -44,8 +47,8 @@ func MakeOrder(items []int64) *Order {
 func (or *Registry) GetOrder(orderID uint) (*Order, bool) {
 	or.mux.Lock()
 	defer or.mux.Unlock()
-	val, ok := or.orders[orderID]
-	return val, ok
+	order, ok := or.orders[orderID]
+	return order, ok
 }
 
 // SubmitOrder creates a new order and adds it to the registry
@@ -56,4 +59,17 @@ func (or *Registry) SubmitOrder(items []int64) (uint, error) {
 	order := MakeOrder(items)
 	or.orders[order.ID] = order
 	return order.ID, nil
+}
+
+func (or *Registry) CancelOrder(orderID uint) error {
+	or.mux.Lock()
+	order, ok := or.orders[orderID]
+	or.mux.Unlock()
+	if !ok {
+		return fmt.Errorf("order %d not found", orderID)
+	}
+	order.mux.Lock()
+	defer order.mux.Unlock()
+	order.Status = StatusCanceled
+	return nil
 }

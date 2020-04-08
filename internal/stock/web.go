@@ -66,6 +66,7 @@ func StartServer(ctx context.Context, port string, stock *Stock) {
 	})
 
 	r.GET("/getStatus", func(c *gin.Context) {
+		// todo: this is a GET request, get the id appropriately
 		var req idReq
 		err := c.BindJSON(&req)
 		if err != nil {
@@ -81,8 +82,25 @@ func StartServer(ctx context.Context, port string, stock *Stock) {
 
 	})
 
+	// todo: currently sets order state to canceled
+	// when order scheduler is implemented the status should
+	// be pendingCancel that denote that the order is planned to
+	// be canceled
 	r.POST("/cancel", func(c *gin.Context) {
-
+		var req idReq
+		err := c.BindJSON(&req)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{})
+			return
+		}
+		err = stock.Orders.CancelOrder(req.Id)
+		// todo: not sure how to distinguish between not found
+		// and failed to update errors here
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusNoContent, gin.H{})
 	})
 	r.Run(":" + port)
 }
