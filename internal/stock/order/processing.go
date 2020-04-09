@@ -16,38 +16,43 @@ func Process(o *Order, catalog *warehouse.Catalog) error {
 	// that only one order is processed at a time
 	// but probably is not worth it since order processing will
 	// most likely be directed through a scheduler that runs in a single thread
-	plan, err := calculatePlan(o, catalog)
+
+	orders, err := calculateOrders(o, catalog)
 	if err != nil {
 		return err
 	}
-	return executePlan(catalog, plan)
+	executed, err := executeOrders(catalog, orders)
+	catalog.ApplyShipment(executed)
+	return err
 }
 
-// requestPlan holds addresses of warehouses from a catalog mapped to
+// shipmentOrders holds addresses of warehouses from a catalog mapped to
 // list of items to request
-type requestPlan map[string][]int64
+type shipmentOrders map[string][]int64
 
-func calculatePlan(o *Order, catalog *warehouse.Catalog) (requestPlan, error) {
+// Calculate shipment orders from a client order and a catalog of warehouses
+func calculateOrders(o *Order, catalog *warehouse.Catalog) (shipmentOrders, error) {
+	// since we need to mutate passed catalog for calculation, make a copy
+	calculationCatalog := catalog.Copy()
 	// for every item in the order, check all warehouses if they have it
 	// use the first you come upon
-	plan := make(map[string][]int64)
-
+	orders := make(map[string][]int64)
 	for _, orderItem := range o.Items {
 		// todo: wrap errors properly
-		address, err := findItem(catalog, orderItem)
+		address, err := findItem(calculationCatalog, orderItem)
 		if err != nil {
 			return nil, err
 		}
-		err = catalog.PopItem(address)
+		err = calculationCatalog.PopItem(address)
 		if err != nil {
 			return nil, err
 		}
-		if _, ok := plan[address]; !ok {
-			plan[address] = make([]int64, 0)
+		if _, ok := orders[address]; !ok {
+			orders[address] = make([]int64, 0)
 		}
-		plan[address] = append(plan[address], orderItem)
+		orders[address] = append(orders[address], orderItem)
 	}
-	return plan, nil
+	return orders, nil
 }
 
 // find a warehouse that has given item on the top of its queue
@@ -61,16 +66,20 @@ func findItem(catalog *warehouse.Catalog, item int64) (string, error) {
 	return "", fmt.Errorf("Item %d not found", item)
 }
 
-func executePlan(catalog *warehouse.Catalog, plan requestPlan) error {
-	// for every warehouse in the plan, request planned items from the wh
-	// if error happens along any, return error
-	// for now this assumes that items are destroyed.
-	// todo: in future we need to keep track of the taken items,
-	// and either send cancellation commands to warehouses or to
-	// collect taken items, most likely both
-	for addr, items := range plan {
+// Execute given orders with warehouse catalog. Request items from every warehouse
+// via grpc
+// If at least one of the warehouses failed, return non-nil error
+// Return an updated request orders that only includes warehouses that have been
+// successfuly queried, so that in case of a partial result a client can return
+// items back to warehouses
+// In case all warehouses succeeded both initial and result request orderss are identical
+func executeOrders(catalog *warehouse.Catalog, orders shipmentOrders) (shipmentOrders, error) {
+	executed := make(map[string][]int64)
+	for addr, items := range orders {
 		fmt.Printf("Requesting %v from %s\n", items, addr)
 		// todo: perform a grpc take call
+		// todo if error, return executed orders
+		executed[addr] = items
 	}
-	return fmt.Errorf("not implemented")
+	return executed, fmt.Errorf("not implemented")
 }

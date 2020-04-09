@@ -11,6 +11,9 @@ import (
 
 const discoverTimeout = 500 * time.Millisecond
 
+// todo: maybe create a global type for map[string][]int64?
+// this is getting on me nerves
+
 // Catalog maps warehouse address to its items
 // Each warehouse data is valid when it's added to the catalog
 // but may later get invalid, e.g. when a warehouse goes down or
@@ -31,7 +34,24 @@ func (c *Catalog) GetWarehouses() map[string][]int64 {
 	return c.warehouses
 }
 
-// PopItem removes first item from the specified warehouse
+// Copy returs a deep copy of this catalog, which may
+// be safely modified
+func (c *Catalog) Copy() *Catalog {
+	res := MakeCatalog()
+	for addr, items := range c.warehouses {
+		new := make([]int64, len(items))
+		copy(new, items)
+		res.warehouses[addr] = new
+	}
+	return res
+}
+
+func (c *Catalog) ApplyShipment(shipment map[string][]int64) {
+
+}
+
+// this doesn't perform the request but only removes item
+// from the catalog
 func (c *Catalog) PopItem(address string) error {
 	wh, ok := c.warehouses[address]
 	if !ok {
@@ -43,6 +63,9 @@ func (c *Catalog) PopItem(address string) error {
 	c.warehouses[address] = wh[1:]
 	return nil
 }
+
+// todo: separate catalogue manipulation code from warehouse network requests
+// and from warehouse discovery
 
 // DiscoverWarehouses starts listening for invitation messages that active
 // warehouses send over UDP. It then adds new warehouses to the address book

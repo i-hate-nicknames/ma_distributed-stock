@@ -36,12 +36,6 @@ func StartServer(ctx context.Context, port string, stock *Stock) {
 		})
 	})
 
-	// todo: in future taking items will be achieved through orders
-	// which will be processed via scheduler, and these methods will
-	// be obsolete
-	r.GET("/takeSome", func(c *gin.Context) {
-		wh.TakeItems(stock.Warehouses)
-	})
 	r.POST("/take", func(c *gin.Context) {
 		// lock take operation since it's not thread-safe
 		takeMux.Lock()
