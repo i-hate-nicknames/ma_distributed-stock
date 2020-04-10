@@ -6,12 +6,12 @@ import (
 	"nvm.ga/mastersofcode/golang_2019/stock_distributed/internal/stock/warehouse"
 )
 
-// shipmentOrders holds addresses of warehouses from a catalog mapped to
+// Shipment holds addresses of warehouses from a catalog mapped to
 // list of items to request
-type shipmentOrders map[string][]int64
+type Shipment map[string][]int64
 
 // Calculate shipment orders from a client order and a catalog of warehouses
-func CalculateOrders(o *Order, catalog *warehouse.Catalog) (shipmentOrders, error) {
+func CalculateShipment(o *Order, catalog *warehouse.Catalog) (Shipment, error) {
 	// since we need to mutate passed catalog for calculation, make a copy
 	calculationCatalog := catalog.Copy()
 	// for every item in the order, check all warehouses if they have it
@@ -46,19 +46,18 @@ func findItem(catalog *warehouse.Catalog, item int64) (string, error) {
 	return "", fmt.Errorf("Item %d not found", item)
 }
 
-// Execute given orders with warehouse catalog. Request items from every warehouse
-// via grpc
+// ExecuteShipment using given warehouse catalog.
+// Request items from every warehouse in the shipment
 // If at least one of the warehouses failed, return non-nil error
-// Return an updated request orders that only includes warehouses that have been
-// successfuly queried, so that in case of a partial result a client can return
-// items back to warehouses
-// In case all warehouses succeeded both initial and result request orderss are identical
-func ExecuteOrders(catalog *warehouse.Catalog, orders shipmentOrders) (shipmentOrders, error) {
+// Return performed shipment which only includes warehouses from which
+// items have been successfuly taken
+// If all warehouses succeed, returned shipment is identical to the passed
+func ExecuteShipment(catalog *warehouse.Catalog, s Shipment) (Shipment, error) {
 	executed := make(map[string][]int64)
-	for addr, items := range orders {
+	for addr, items := range s {
 		fmt.Printf("Requesting %v from %s\n", items, addr)
 		// todo: perform a grpc take call
-		// todo if error, return executed orders
+		// todo if error, return executed shipping
 		executed[addr] = items
 	}
 	return executed, fmt.Errorf("not implemented")
