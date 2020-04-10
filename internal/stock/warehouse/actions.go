@@ -36,12 +36,12 @@ func doHello(ctx context.Context, address string) {
 
 // todo: add other actions like taking items or getting item list
 
-func doGetItems(ctx context.Context, address string) ([]int64, error) {
+func LoadInventory(ctx context.Context, address string) ([]int64, error) {
 	conn, client := getClient(address)
 	defer conn.Close()
 	rs, err := client.GetItems(ctx, &api.Empty{})
 	if err != nil {
-		return nil, fmt.Errorf("get items from %s: %v", address, err)
+		return nil, fmt.Errorf("load inventory from %s: %v", address, err)
 	}
 	return rs.GetItems(), nil
 }

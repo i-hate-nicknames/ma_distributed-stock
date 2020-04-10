@@ -64,14 +64,38 @@ func (c *Catalog) PopItem(address string) error {
 	return nil
 }
 
+// AddWarehouse located by this address to the list of warehouses
+func (c *Catalog) AddWarehouse(address string, items []int64) {
+	c.mux.Lock()
+	defer c.mux.Unlock()
+	c.warehouses[address] = items
+}
+
+// AddWarehouse located by this address to the list of warehouses
+func (c *Catalog) HasWarehouse(address string) bool {
+	c.mux.Lock()
+	defer c.mux.Unlock()
+	_, ok := c.warehouses[address]
+	return ok
+}
+
+// AddWarehouse located by this address to the list of warehouses
+func (c *Catalog) RemoveWarehouse(address string) {
+	c.mux.Lock()
+	defer c.mux.Unlock()
+	_, ok := c.warehouses[address]
+	if ok {
+		delete(c.warehouses, address)
+	}
+}
+
 // todo: separate catalogue manipulation code from warehouse network requests
 // and from warehouse discovery
 
-// DiscoverWarehouses starts listening for invitation messages that active
-// warehouses send over UDP. It then adds new warehouses to the address book
-// This is a blocking operation that blocks indefinitely
-// todo: add context for cancelation
-func DiscoverWarehouses(catalog *Catalog) {
+// GetInvitations starts listening for invitation messages that active
+// warehouses send over UDP. Whenever it gets new warehouse address it sends it
+// to the addresses channel
+func GetInvitations(ctx context.Context, addresses chan<- string) {
 	conn, err := net.ListenUDP("udp", &net.UDPAddr{
 		Port: 3000,
 		IP:   net.ParseIP("0.0.0.0"),
@@ -87,38 +111,9 @@ func DiscoverWarehouses(catalog *Catalog) {
 		if err != nil {
 			log.Println(err)
 		}
-		addWarehouse(string(buf[:n]), catalog)
+		addresses <- string(buf[:n])
 		time.Sleep(discoverTimeout)
 	}
-}
-
-// Add a warehouse located by this address to the list of warehouses
-func addWarehouse(address string, catalog *Catalog) {
-	catalog.mux.Lock()
-	defer catalog.mux.Unlock()
-	if _, ok := catalog.warehouses[address]; ok {
-		// warehouse is already added
-		return
-	}
-	items := make([]int64, 0)
-	catalog.warehouses[address] = items
-	log.Printf("Added new warehouse by the address: %s\n", address)
-	go updateWarehouseItems(address, catalog)
-}
-
-// send request to the given warehouse and add
-func updateWarehouseItems(address string, catalog *Catalog) {
-	ctx := context.Background()
-	items, err := doGetItems(ctx, address)
-	catalog.mux.Lock()
-	defer catalog.mux.Unlock()
-	if err != nil {
-		log.Println(err)
-		delete(catalog.warehouses, address)
-		return
-	}
-	catalog.warehouses[address] = items
-	log.Printf("Updated items for %s, items: %v\n", address, items)
 }
 
 // TakeItems simulates taking items: send take item requests to all available warehouses

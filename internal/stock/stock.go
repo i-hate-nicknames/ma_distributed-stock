@@ -1,6 +1,9 @@
 package stock
 
 import (
+	"context"
+	"log"
+
 	"nvm.ga/mastersofcode/golang_2019/stock_distributed/internal/stock/order"
 	"nvm.ga/mastersofcode/golang_2019/stock_distributed/internal/stock/warehouse"
 )
@@ -8,6 +11,27 @@ import (
 type Stock struct {
 	Warehouses *warehouse.Catalog
 	Orders     *order.Registry
+}
+
+func (s *Stock) DiscoverWarehouses(ctx context.Context) {
+	addresses := make(chan string, 5)
+	go warehouse.GetInvitations(ctx, addresses)
+	for address := range addresses {
+		if s.Warehouses.HasWarehouse(address) {
+			continue
+		}
+		s.updateWarehouseItems(ctx, address)
+	}
+}
+
+func (s *Stock) updateWarehouseItems(ctx context.Context, address string) {
+	items, err := warehouse.LoadInventory(ctx, address)
+	if err != nil {
+		s.Warehouses.RemoveWarehouse(address)
+		return
+	}
+	log.Printf("Added warehouse %s with items %v\n", address, items)
+	s.Warehouses.AddWarehouse(address, items)
 }
 
 func (s *Stock) SumbitOrder(items []int64) (*order.Order, error) {
