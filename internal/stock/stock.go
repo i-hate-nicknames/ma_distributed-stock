@@ -9,3 +9,30 @@ type Stock struct {
 	Warehouses *warehouse.Catalog
 	Orders     *order.Registry
 }
+
+func (s *Stock) SumbitOrder(items []int64) (*order.Order, error) {
+	// todo: this method is messy because later order processing
+	// will happen asynchronously in a different thread, and order
+	// submission will just create an order
+	ord, err := s.Orders.SubmitOrder(items)
+	if err != nil {
+		return nil, err
+	}
+	inv, err := order.CalculateOrders(ord, s.Warehouses)
+	if err != nil {
+		return nil, err
+	}
+	executed, err := order.ExecuteOrders(s.Warehouses, inv)
+	s.Warehouses.ApplyShipment(executed)
+	if err != nil {
+		// executing was not entirely successful
+		// collect all the items in the shipment, store
+		// them as shipped in the order, and remove those items
+		// from items in order
+		// set order status to pending
+
+		// we still consider a partial order satisfaction a success
+		return ord, nil
+	}
+	return ord, nil
+}

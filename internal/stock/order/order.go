@@ -53,12 +53,12 @@ func (or *Registry) GetOrder(orderID uint) (*Order, bool) {
 
 // SubmitOrder creates a new order and adds it to the registry
 // returns an assigned order id for the new order or error
-func (or *Registry) SubmitOrder(items []int64) (uint, error) {
+func (or *Registry) SubmitOrder(items []int64) (*Order, error) {
 	or.mux.Lock()
 	defer or.mux.Unlock()
 	order := MakeOrder(items)
 	or.orders[order.ID] = order
-	return order.ID, nil
+	return order, nil
 }
 
 func (or *Registry) CancelOrder(orderID uint) error {

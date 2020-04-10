@@ -2,13 +2,10 @@ package stock
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
-	"sync"
 
 	"github.com/gin-gonic/gin"
-	"nvm.ga/mastersofcode/golang_2019/stock_distributed/internal/stock/order"
 	wh "nvm.ga/mastersofcode/golang_2019/stock_distributed/internal/stock/warehouse"
 )
 
@@ -24,7 +21,6 @@ type idReq struct {
 // corresponding actions using available warehouses
 func StartServer(ctx context.Context, port string, stock *Stock) {
 	r := gin.Default()
-	var takeMux sync.Mutex
 	r.GET("/hello", func(c *gin.Context) {
 		log.Println("Greeting all warehouses")
 		wh.GreetWarehouses(stock.Warehouses)
@@ -36,13 +32,6 @@ func StartServer(ctx context.Context, port string, stock *Stock) {
 		})
 	})
 
-	r.POST("/take", func(c *gin.Context) {
-		// lock take operation since it's not thread-safe
-		takeMux.Lock()
-		defer takeMux.Unlock()
-		take(c, stock)
-	})
-
 	// Order management handlers
 	r.POST("/submit", func(c *gin.Context) {
 		var req itemsReq
@@ -51,12 +40,15 @@ func StartServer(ctx context.Context, port string, stock *Stock) {
 			c.JSON(http.StatusBadRequest, gin.H{})
 			return
 		}
-		ID, err := stock.Orders.SubmitOrder(req.Items)
+		order, err := stock.SumbitOrder(req.Items)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"message": "failed to create an order"})
+			c.JSON(http.StatusOK, gin.H{
+				"message": "partial success",
+				"orderId": order.ID,
+			})
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"orderId": ID})
+		c.JSON(http.StatusOK, gin.H{"orderId": order.ID})
 	})
 
 	r.GET("/getStatus", func(c *gin.Context) {
@@ -97,24 +89,6 @@ func StartServer(ctx context.Context, port string, stock *Stock) {
 		c.JSON(http.StatusNoContent, gin.H{})
 	})
 	r.Run(":" + port)
-}
-
-func take(c *gin.Context, stock *Stock) {
-	var req itemsReq
-	err := c.BindJSON(&req)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{})
-		return
-	}
-	log.Printf("Taking items %v", req.Items)
-	ord := &order.Order{Items: req.Items}
-	err = order.Process(ord, stock.Warehouses)
-	if err != nil {
-		msg := fmt.Sprintf("Cannot execute the order: %s", err.Error())
-		c.JSON(http.StatusNotFound, gin.H{"message": msg})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"status": "order successfuly executed"})
 }
 
 // todo: implement taking items
