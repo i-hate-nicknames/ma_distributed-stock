@@ -42,11 +42,11 @@ func (s *Stock) SumbitOrder(items []int64) (*order.Order, error) {
 	if err != nil {
 		return nil, err
 	}
-	shipment, err := order.CalculateShipment(ord, s.Warehouses)
+	shipment, err := s.Warehouses.CalculateShipment(ord)
 	if err != nil {
 		return nil, err
 	}
-	executed, err := order.ExecuteShipment(s.Warehouses, shipment)
+	executed, err := s.Warehouses.ExecuteShipment(shipment)
 	s.Warehouses.ApplyShipment(executed)
 	if err != nil {
 		// executing was not entirely successful

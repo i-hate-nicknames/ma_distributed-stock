@@ -1,12 +1,11 @@
 package warehouse
 
 import (
-	"context"
 	"fmt"
-	"log"
-	"net"
 	"sync"
 	"time"
+
+	"nvm.ga/mastersofcode/golang_2019/stock_distributed/internal/stock/order"
 )
 
 const discoverTimeout = 500 * time.Millisecond
@@ -22,6 +21,10 @@ type Catalog struct {
 	mux        sync.Mutex
 	warehouses map[string][]int64
 }
+
+// Shipment holds addresses of warehouses from a catalog mapped to
+// list of items to request
+type Shipment map[string][]int64
 
 // MakeCatalog makes a single instance of an address book
 func MakeCatalog() *Catalog {
@@ -89,54 +92,55 @@ func (c *Catalog) RemoveWarehouse(address string) {
 	}
 }
 
-// todo: separate catalogue manipulation code from warehouse network requests
-// and from warehouse discovery
-
-// GetInvitations starts listening for invitation messages that active
-// warehouses send over UDP. Whenever it gets new warehouse address it sends it
-// to the addresses channel
-func GetInvitations(ctx context.Context, addresses chan<- string) {
-	conn, err := net.ListenUDP("udp", &net.UDPAddr{
-		Port: 3000,
-		IP:   net.ParseIP("0.0.0.0"),
-	})
-	if err != nil {
-		log.Println(err)
-	}
-	defer conn.Close()
-
-	buf := make([]byte, 1024)
-	for {
-		n, _, err := conn.ReadFrom(buf[:])
+// Calculate shipment orders from a client order and a catalog of warehouses
+func (c *Catalog) CalculateShipment(o *order.Order) (Shipment, error) {
+	// since we need to mutate passed catalog for calculation, make a copy
+	calculationCatalog := c.Copy()
+	// for every item in the order, check all warehouses if they have it
+	// use the first you come upon
+	orders := make(map[string][]int64)
+	for _, orderItem := range o.Items {
+		// todo: wrap errors properly
+		address, err := findItem(calculationCatalog, orderItem)
 		if err != nil {
-			log.Println(err)
+			return nil, err
 		}
-		addresses <- string(buf[:n])
-		time.Sleep(discoverTimeout)
+		err = calculationCatalog.PopItem(address)
+		if err != nil {
+			return nil, err
+		}
+		if _, ok := orders[address]; !ok {
+			orders[address] = make([]int64, 0)
+		}
+		orders[address] = append(orders[address], orderItem)
 	}
+	return orders, nil
 }
 
-// TakeItems simulates taking items: send take item requests to all available warehouses
-func TakeItems(catalog *Catalog) {
-	catalog.mux.Lock()
-	defer catalog.mux.Unlock()
-	toTake := []int64{1, 2}
-	for addr := range catalog.warehouses {
-		log.Printf("Taking %v from %s\n", toTake, addr)
-		ctx := context.Background()
-		err := doTakeItems(ctx, addr, toTake)
-		if err != nil {
-			log.Printf(err.Error())
+// find a warehouse that has given item on the top of its queue
+// return address of that warehouse, or error if item cannot be found
+func findItem(catalog *Catalog, item int64) (string, error) {
+	for address, wh := range catalog.GetWarehouses() {
+		if len(wh) > 0 && wh[0] == item {
+			return address, nil
 		}
 	}
+	return "", fmt.Errorf("Item %d not found", item)
 }
 
-// GreetWarehouses sends greeting to every warehouse to test connection
-func GreetWarehouses(catalog *Catalog) {
-	catalog.mux.Lock()
-	defer catalog.mux.Unlock()
-	for addr := range catalog.warehouses {
-		ctx := context.Background()
-		doHello(ctx, addr)
+// ExecuteShipment using given warehouse catalog.
+// Request items from every warehouse in the shipment
+// If at least one of the warehouses failed, return non-nil error
+// Return performed shipment which only includes warehouses from which
+// items have been successfuly taken
+// If all warehouses succeed, returned shipment is identical to the passed
+func (c *Catalog) ExecuteShipment(s Shipment) (Shipment, error) {
+	executed := make(map[string][]int64)
+	for addr, items := range s {
+		fmt.Printf("Requesting %v from %s\n", items, addr)
+		// todo: perform a grpc take call
+		// todo if error, return executed shipping
+		executed[addr] = items
 	}
+	return executed, fmt.Errorf("not implemented")
 }
