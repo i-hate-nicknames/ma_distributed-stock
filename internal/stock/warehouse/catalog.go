@@ -10,8 +10,10 @@ import (
 
 const discoverTimeout = 500 * time.Millisecond
 
-// todo: maybe create a global type for map[string][]int64?
-// this is getting on me nerves
+// Inventory holds a collection of warehouse addresses mapped
+// a set of items. This can be used to represent a total inventory of
+// a warehouse as well as an inventory of a shipping
+type Inventory map[string][]int64
 
 // Catalog maps warehouse address to its items
 // Each warehouse data is valid when it's added to the catalog
@@ -19,51 +21,27 @@ const discoverTimeout = 500 * time.Millisecond
 // somehow loses items
 type Catalog struct {
 	mux        sync.Mutex
-	warehouses map[string][]int64
+	warehouses Inventory
 }
-
-// Shipment holds addresses of warehouses from a catalog mapped to
-// list of items to request
-type Shipment map[string][]int64
 
 // MakeCatalog makes a single instance of an address book
 func MakeCatalog() *Catalog {
-	warehouses := make(map[string][]int64, 0)
+	warehouses := make(Inventory, 0)
 	return &Catalog{warehouses: warehouses}
 }
 
-// GetWarehouses returns all warehouses in this catalog
-func (c *Catalog) GetWarehouses() map[string][]int64 {
-	return c.warehouses
-}
-
-// Copy returs a deep copy of this catalog, which may
-// be safely modified
-func (c *Catalog) Copy() *Catalog {
-	res := MakeCatalog()
-	for addr, items := range c.warehouses {
-		new := make([]int64, len(items))
-		copy(new, items)
-		res.warehouses[addr] = new
-	}
-	return res
-}
-
-func (c *Catalog) ApplyShipment(shipment map[string][]int64) {
-
-}
-
-// this doesn't perform the request but only removes item
-// from the catalog
-func (c *Catalog) PopItem(address string) error {
-	wh, ok := c.warehouses[address]
+// popItem takes and removes first item in the warehouse
+// in the given inventory. If there is no such warehouse, or
+// it has no items, return non-nil error
+func popItem(inv Inventory, address string) error {
+	wh, ok := inv[address]
 	if !ok {
 		return fmt.Errorf("warehouse %s not found", address)
 	}
 	if len(wh) == 0 {
 		return fmt.Errorf("warehouse %s is empty", address)
 	}
-	c.warehouses[address] = wh[1:]
+	inv[address] = wh[1:]
 	return nil
 }
 
@@ -74,7 +52,8 @@ func (c *Catalog) AddWarehouse(address string, items []int64) {
 	c.warehouses[address] = items
 }
 
-// AddWarehouse located by this address to the list of warehouses
+// HasWarehouse returns true if this catalog has a warehouse under
+// given address
 func (c *Catalog) HasWarehouse(address string) bool {
 	c.mux.Lock()
 	defer c.mux.Unlock()
@@ -82,7 +61,7 @@ func (c *Catalog) HasWarehouse(address string) bool {
 	return ok
 }
 
-// AddWarehouse located by this address to the list of warehouses
+// RemoveWarehouse identified by the address from the catalog
 func (c *Catalog) RemoveWarehouse(address string) {
 	c.mux.Lock()
 	defer c.mux.Unlock()
@@ -92,20 +71,24 @@ func (c *Catalog) RemoveWarehouse(address string) {
 	}
 }
 
-// Calculate shipment orders from a client order and a catalog of warehouses
-func (c *Catalog) CalculateShipment(o *order.Order) (Shipment, error) {
-	// since we need to mutate passed catalog for calculation, make a copy
-	calculationCatalog := c.Copy()
+// CalculateShipment orders from a client order and a catalog of warehouses
+func (c *Catalog) CalculateShipment(o *order.Order) (Inventory, error) {
+	inv := make(Inventory)
+	for addr, items := range c.warehouses {
+		new := make([]int64, len(items))
+		copy(new, items)
+		inv[addr] = new
+	}
 	// for every item in the order, check all warehouses if they have it
 	// use the first you come upon
-	orders := make(map[string][]int64)
+	orders := make(Inventory)
 	for _, orderItem := range o.Items {
 		// todo: wrap errors properly
-		address, err := findItem(calculationCatalog, orderItem)
+		address, err := findItem(inv, orderItem)
 		if err != nil {
 			return nil, err
 		}
-		err = calculationCatalog.PopItem(address)
+		err = popItem(inv, address)
 		if err != nil {
 			return nil, err
 		}
@@ -119,8 +102,8 @@ func (c *Catalog) CalculateShipment(o *order.Order) (Shipment, error) {
 
 // find a warehouse that has given item on the top of its queue
 // return address of that warehouse, or error if item cannot be found
-func findItem(catalog *Catalog, item int64) (string, error) {
-	for address, wh := range catalog.GetWarehouses() {
+func findItem(inv Inventory, item int64) (string, error) {
+	for address, wh := range inv {
 		if len(wh) > 0 && wh[0] == item {
 			return address, nil
 		}
@@ -131,16 +114,30 @@ func findItem(catalog *Catalog, item int64) (string, error) {
 // ExecuteShipment using given warehouse catalog.
 // Request items from every warehouse in the shipment
 // If at least one of the warehouses failed, return non-nil error
-// Return performed shipment which only includes warehouses from which
-// items have been successfuly taken
-// If all warehouses succeed, returned shipment is identical to the passed
-func (c *Catalog) ExecuteShipment(s Shipment) (Shipment, error) {
-	executed := make(map[string][]int64)
-	for addr, items := range s {
+func (c *Catalog) ExecuteShipment(shipment Inventory) error {
+	executed := make(Inventory)
+	for addr, items := range shipment {
 		fmt.Printf("Requesting %v from %s\n", items, addr)
 		// todo: perform a grpc take call
 		// todo if error, return executed shipping
 		executed[addr] = items
 	}
-	return executed, fmt.Errorf("not implemented")
+	// todo:
+	// applying a shipment introduces a consistency issue:
+	// when shipment A is executed but haven't updated
+	// the catalog yet, and shipment B is calculated on
+	// the old inventory. Upon finish shipment A will
+	// apply whatever has been executed thus changing inventory,
+	// and shipment B may become invalid
+	// we can simply allow that to happen and then ensure that
+	// shipping operations are performed in a single "transaction",
+	// or we can introduce some mechanism of validation, the simplest
+	// may be adding "last calculated shipment" integer to catalog
+	c.applyShipment(executed)
+	return fmt.Errorf("not implemented")
+}
+
+func (c *Catalog) applyShipment(shipment Inventory) {
+	c.mux.Lock()
+	defer c.mux.Unlock()
 }
