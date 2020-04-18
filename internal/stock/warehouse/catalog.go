@@ -30,23 +30,15 @@ func MakeCatalog() *Catalog {
 	return &Catalog{warehouses: warehouses}
 }
 
-// popItem takes and removes first item in the warehouse
-// in the given inventory. If there is no such warehouse, or
-// it has no items, return non-nil error
-func popItem(inv Inventory, address string) error {
-	wh, ok := inv[address]
-	if !ok {
-		return fmt.Errorf("warehouse %s not found", address)
-	}
-	if len(wh) == 0 {
-		return fmt.Errorf("warehouse %s is empty", address)
-	}
-	inv[address] = wh[1:]
-	return nil
-}
-
+// GetWarehouses from this catalog
 func (c *Catalog) GetWarehouses() Inventory {
-	return nil
+	inv := make(Inventory)
+	for addr, items := range c.warehouses {
+		new := make([]int64, len(items))
+		copy(new, items)
+		inv[addr] = new
+	}
+	return inv
 }
 
 // AddWarehouse located by this address to the list of warehouses
@@ -77,22 +69,17 @@ func (c *Catalog) RemoveWarehouse(address string) {
 
 // CalculateShipment orders from a client order and a catalog of warehouses
 func (c *Catalog) CalculateShipment(o *order.Order) (Inventory, error) {
-	inv := make(Inventory)
-	for addr, items := range c.warehouses {
-		new := make([]int64, len(items))
-		copy(new, items)
-		inv[addr] = new
-	}
 	// for every item in the order, check all warehouses if they have it
 	// use the first you come upon
 	orders := make(Inventory)
+	warehouses := c.GetWarehouses()
 	for _, orderItem := range o.Items {
 		// todo: wrap errors properly
-		address, err := findItem(inv, orderItem)
+		address, err := findItem(warehouses, orderItem)
 		if err != nil {
 			return nil, err
 		}
-		err = popItem(inv, address)
+		err = popItem(warehouses, address)
 		if err != nil {
 			return nil, err
 		}
@@ -113,6 +100,21 @@ func findItem(inv Inventory, item int64) (string, error) {
 		}
 	}
 	return "", fmt.Errorf("Item %d not found", item)
+}
+
+// popItem takes and removes first item in the warehouse
+// in the given inventory. If there is no such warehouse, or
+// it has no items, return non-nil error
+func popItem(inv Inventory, address string) error {
+	wh, ok := inv[address]
+	if !ok {
+		return fmt.Errorf("warehouse %s not found", address)
+	}
+	if len(wh) == 0 {
+		return fmt.Errorf("warehouse %s is empty", address)
+	}
+	inv[address] = wh[1:]
+	return nil
 }
 
 // ExecuteShipment using given warehouse catalog.

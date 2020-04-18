@@ -34,10 +34,11 @@ func (s *Stock) updateWarehouseItems(ctx context.Context, address string) {
 	s.Warehouses.AddWarehouse(address, items)
 }
 
-func (s *Stock) SumbitOrder(items []int64) (*order.Order, error) {
-	// todo: this method is messy because later order processing
-	// will happen asynchronously in a different thread, and order
-	// submission will just create an order
+// SumbitOrder creates a new order for given items and immediately
+// tries to ship items
+func (s *Stock) SubmitOrder(items []int64) (*order.Order, error) {
+	// todo: later order processing will happen asynchronously
+	// in a different thread, and order, submission will just create an order
 	ord, err := s.Orders.SubmitOrder(items)
 	if err != nil {
 		return nil, err

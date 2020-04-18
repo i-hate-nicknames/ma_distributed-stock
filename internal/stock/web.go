@@ -39,7 +39,7 @@ func StartServer(ctx context.Context, port string, stock *Stock) {
 			c.JSON(http.StatusBadRequest, gin.H{})
 			return
 		}
-		order, err := stock.SumbitOrder(req.Items)
+		order, err := stock.SubmitOrder(req.Items)
 		if err != nil {
 			c.JSON(http.StatusOK, gin.H{
 				"message": "partial success",
