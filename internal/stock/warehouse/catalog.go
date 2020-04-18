@@ -2,9 +2,11 @@ package warehouse
 
 import (
 	"fmt"
+	"log"
 	"sync"
 	"time"
 
+	"golang.org/x/net/context"
 	"nvm.ga/mastersofcode/golang_2019/stock_distributed/internal/stock/order"
 )
 
@@ -122,20 +124,19 @@ func popItem(inv Inventory, address string) error {
 // Return error if none of the items in the shipment were
 // successfuly requested
 // Otherwise return a slice of items that have been successfuly retrieved
-// from warehouses
-func (c *Catalog) ExecuteShipment(shipment Inventory) ([]int64, error) {
-	executed := make(Inventory)
-	for addr, items := range shipment {
-		fmt.Printf("Requesting %v from %s\n", items, addr)
-		// todo: perform a grpc take call
-		// update local catalog items with the actual remaining items
-		// using the reply
-		executed[addr] = items
-	}
-
+func (c *Catalog) ExecuteShipment(ctx context.Context, shipment Inventory) ([]int64, error) {
 	taken := make([]int64, 0)
-	for _, shippedItems := range shipment {
-		taken = append(taken, shippedItems...)
+	for address, items := range shipment {
+		log.Printf("Requesting %v from %s\n", items, address)
+		remaining, err := TakeItems(ctx, address, items)
+		if err != nil {
+			log.Println("Cannot take items from ", address, err.Error())
+			continue
+		}
+		c.mux.Lock()
+		c.warehouses[address] = remaining
+		c.mux.Unlock()
+		taken = append(taken, items...)
 	}
 	if len(taken) == 0 {
 		return nil, fmt.Errorf("Couldn't request any items")

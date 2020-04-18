@@ -63,17 +63,17 @@ func LoadItems(ctx context.Context, address string) ([]int64, error) {
 
 // TakeItems orders warehouse to ship given items. If the order cannot be
 // fulfilled precisely, the the operation fails altogether
-func TakeItems(ctx context.Context, address string, items []int64) error {
+func TakeItems(ctx context.Context, address string, items []int64) ([]int64, error) {
 	conn, client, err := getGrpcClient(address)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer conn.Close()
-	_, err = client.TakeItems(ctx, &api.ItemList{Items: items})
+	response, err := client.TakeItems(ctx, &api.ItemList{Items: items})
 	if err != nil {
-		return fmt.Errorf("take items from %s: %v", address, err)
+		return nil, fmt.Errorf("take items from %s: %v", address, err)
 	}
-	return nil
+	return response.Items, nil
 }
 
 // GreetWarehouse is a basic wrapper around the corresponding service's RPC.

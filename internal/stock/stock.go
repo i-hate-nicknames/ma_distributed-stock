@@ -58,7 +58,8 @@ func (s *Stock) SubmitOrder(items []int64) (*order.Order, error) {
 	if err != nil {
 		return nil, err
 	}
-	taken, err := s.Catalog.ExecuteShipment(shipment)
+	ctx := context.Background()
+	taken, err := s.Catalog.ExecuteShipment(ctx, shipment)
 	if err != nil {
 		return ord, nil
 	}
