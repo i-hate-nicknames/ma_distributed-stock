@@ -84,24 +84,20 @@ func (service *whService) PutItems(ctx context.Context, itemList *api.ItemList) 
 func (service *whService) TakeItems(ctx context.Context, itemList *api.ItemList) (*api.ItemList, error) {
 	mux.Lock()
 	defer mux.Unlock()
+	log.Printf("Processing items request %v, having %v", itemList.Items, myItems.Items)
 	requestItems := itemList.GetItems()
 	if len(requestItems) > len(myItems.Items) {
+		log.Println("Too few items in the warehouse")
 		return nil, status.Errorf(codes.FailedPrecondition, "Too few items in the warehouse")
 	}
-	i := 0
-	for _, item := range requestItems {
-		if i == len(requestItems)-1 {
-			myItems.Items = myItems.Items[i:]
-			return myItems, nil
-		}
-		if item != myItems.Items[i] {
-			errorText := fmt.Sprintf("Items differ at %dth element: %v, %v", i, requestItems, myItems.Items)
+	for idx, item := range requestItems {
+		if item != myItems.Items[idx] {
+			errorText := fmt.Sprintf("Items differ at %dth element: %v, %v", idx, requestItems, myItems.Items)
 			return nil, status.Errorf(codes.FailedPrecondition, errorText)
 		}
-		i++
 	}
-
-	return nil, status.Errorf(codes.Unimplemented, "Not implemented")
+	myItems.Items = myItems.Items[len(requestItems):]
+	return myItems, nil
 }
 
 // GetItems returns what items are available in this warehouse in the order they must be requested
