@@ -38,18 +38,21 @@ func ListenToInvitations(ctx context.Context, addresses chan<- string) {
 // getGrpcClient attempts to dial the specified address flag and returns a service
 // client and its underlying connection. If it is unable to make a connection,
 // it dies.
-func getGrpcClient(address string) (*grpc.ClientConn, api.WarehouseServiceClient) {
+func getGrpcClient(address string) (*grpc.ClientConn, api.WarehouseServiceClient, error) {
 	conn, err := grpc.Dial(address, grpc.WithTimeout(5*time.Second), grpc.WithInsecure())
 	if err != nil {
-		log.Fatalf("did not connect: %v", err)
+		return nil, nil, fmt.Errorf("did not connect: %v", err)
 	}
-	return conn, api.NewWarehouseServiceClient(conn)
+	return conn, api.NewWarehouseServiceClient(conn), nil
 }
 
-// todo: add other actions like taking items or getting item list
-
+// LoadItems returns sequence of items available for retrieving in warehouse
+// by the specified address
 func LoadItems(ctx context.Context, address string) ([]int64, error) {
-	conn, client := getGrpcClient(address)
+	conn, client, err := getGrpcClient(address)
+	if err != nil {
+		return nil, err
+	}
 	defer conn.Close()
 	rs, err := client.GetItems(ctx, &api.Empty{})
 	if err != nil {
@@ -58,10 +61,15 @@ func LoadItems(ctx context.Context, address string) ([]int64, error) {
 	return rs.GetItems(), nil
 }
 
+// TakeItems orders warehouse to ship given items. If the order cannot be
+// fulfilled precisely, the the operation fails altogether
 func TakeItems(ctx context.Context, address string, items []int64) error {
-	conn, client := getGrpcClient(address)
+	conn, client, err := getGrpcClient(address)
+	if err != nil {
+		return err
+	}
 	defer conn.Close()
-	_, err := client.TakeItems(ctx, &api.ItemList{Items: items})
+	_, err = client.TakeItems(ctx, &api.ItemList{Items: items})
 	if err != nil {
 		return fmt.Errorf("take items from %s: %v", address, err)
 	}
@@ -71,12 +79,15 @@ func TakeItems(ctx context.Context, address string, items []int64) error {
 // GreetWarehouse is a basic wrapper around the corresponding service's RPC.
 // It parses the provided arguments, calls the service, and prints the
 // response. If any errors are encountered, it dies.
-func GreetWarehouse(ctx context.Context, address string) {
-	conn, client := getGrpcClient(address)
-	defer conn.Close()
-	rs, err := client.Hello(ctx, &api.Text{Text: "hey"})
+func GreetWarehouse(ctx context.Context, address string) (string, error) {
+	conn, client, err := getGrpcClient(address)
 	if err != nil {
-		log.Fatalf("Hello: %v", err)
+		return "", err
 	}
-	fmt.Printf("Warehouse replied to our greeting: %s\n", rs.GetText())
+	defer conn.Close()
+	response, err := client.Hello(ctx, &api.Text{Text: "hey"})
+	if err != nil {
+		return "", err
+	}
+	return response.Text, nil
 }

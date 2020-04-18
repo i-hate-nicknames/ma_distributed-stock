@@ -72,6 +72,11 @@ func (s *Stock) GreetWarehouses() {
 	whs := s.Catalog.GetWarehouses()
 	for addr := range whs {
 		ctx := context.Background()
-		warehouse.GreetWarehouse(ctx, addr)
+		reply, err := warehouse.GreetWarehouse(ctx, addr)
+		if err != nil {
+			log.Printf("Error when greeting a warehouse %s: %v\n", addr, err)
+		} else {
+			log.Printf("Warehouse %s replied: %s\n", addr, reply)
+		}
 	}
 }
