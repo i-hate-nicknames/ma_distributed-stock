@@ -1,8 +1,8 @@
 syntax = "proto3";
 
 service WarehouseService {
-    rpc PutItems (ItemList) returns (Empty);
-    rpc TakeItems (ItemList) returns (Empty);
+    rpc PutItems (ItemList) returns (ItemList);
+    rpc TakeItems (ItemList) returns (ItemList);
     rpc GetItems (Empty) returns (ItemList);
     rpc Hello (Text) returns (Text);
 }

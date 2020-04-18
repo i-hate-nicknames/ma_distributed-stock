@@ -75,13 +75,13 @@ type whService struct{}
 
 // PutItems adds given items to this warehouse in the order left to right, so the last
 // item on the list will end up being on top
-func (service *whService) PutItems(ctx context.Context, itemList *api.ItemList) (*api.Empty, error) {
+func (service *whService) PutItems(ctx context.Context, itemList *api.ItemList) (*api.ItemList, error) {
 	return nil, status.Errorf(codes.Unimplemented, "Not implemented")
 }
 
 // TakeItems retrieves multiple items from this warehouse, while removing them locally
 // If items in the request cannot be satisfied in the order they are provided an error is returned
-func (service *whService) TakeItems(ctx context.Context, itemList *api.ItemList) (*api.Empty, error) {
+func (service *whService) TakeItems(ctx context.Context, itemList *api.ItemList) (*api.ItemList, error) {
 	mux.Lock()
 	defer mux.Unlock()
 	requestItems := itemList.GetItems()
@@ -92,7 +92,7 @@ func (service *whService) TakeItems(ctx context.Context, itemList *api.ItemList)
 	for _, item := range requestItems {
 		if i == len(requestItems)-1 {
 			myItems.Items = myItems.Items[i:]
-			return &api.Empty{}, nil
+			return myItems, nil
 		}
 		if item != myItems.Items[i] {
 			errorText := fmt.Sprintf("Items differ at %dth element: %v, %v", i, requestItems, myItems.Items)
