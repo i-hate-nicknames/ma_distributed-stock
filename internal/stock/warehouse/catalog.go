@@ -140,4 +140,5 @@ func (c *Catalog) ExecuteShipment(shipment Inventory) error {
 func (c *Catalog) applyShipment(shipment Inventory) {
 	c.mux.Lock()
 	defer c.mux.Unlock()
+	// todo: implement
 }

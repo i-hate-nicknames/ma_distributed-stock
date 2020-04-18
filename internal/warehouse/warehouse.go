@@ -14,7 +14,7 @@ import (
 	api "nvm.ga/mastersofcode/golang_2019/stock_distributed/api"
 )
 
-const invitationTimeout = 500 * time.Millisecond
+const invitationTimeout = 1 * time.Millisecond
 
 // todo: instead of itemlist store items internally
 // in a LIFO machine
@@ -34,11 +34,22 @@ func StartWarehouse(port string, items []int64) {
 // continuously broadcast invitation message over UDP
 // with address to connect
 func sendInvitations(myAddr string) {
+	serverAddr, err := net.ResolveUDPAddr("udp", "255.255.255.255:3000")
+	if err != nil {
+		log.Fatal(err)
+	}
+	localAddr, err := net.ResolveUDPAddr("udp", ":0")
+	if err != nil {
+		log.Fatal(err)
+	}
+	conn, err := net.DialUDP("udp", localAddr, serverAddr)
+	if err != nil {
+		log.Fatal(err)
+	}
+	msg := []byte(myAddr)
 	for {
 		time.Sleep(invitationTimeout)
-		con, _ := net.Dial("udp", "127.0.0.1:3000")
-		buf := []byte(myAddr)
-		_, err := con.Write(buf)
+		_, err := conn.Write(msg)
 		if err != nil {
 			log.Println(err)
 		}
