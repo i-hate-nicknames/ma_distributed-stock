@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -16,19 +17,14 @@ type idReq struct {
 	Id uint
 }
 
-// StartServer starts a web server that listens to incoming requests and performs
+// StartWebServer starts a web server that listens to incoming requests and performs
 // corresponding actions using available warehouses
-func StartServer(ctx context.Context, port string, stock *Stock) {
+func StartWebServer(ctx context.Context, port string, stock *Stock) {
 	r := gin.Default()
-	r.GET("/hello", func(c *gin.Context) {
+	r.GET("/sendGreetings", func(c *gin.Context) {
 		log.Println("Greeting all warehouses")
 		stock.GreetWarehouses()
 		c.JSON(http.StatusNoContent, gin.H{})
-	})
-	r.GET("/", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"status": "I am ok",
-		})
 	})
 
 	// Order management handlers
@@ -36,29 +32,25 @@ func StartServer(ctx context.Context, port string, stock *Stock) {
 		var req itemsReq
 		err := c.BindJSON(&req)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{})
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 		order, err := stock.SubmitOrder(req.Items)
 		if err != nil {
-			c.JSON(http.StatusOK, gin.H{
-				"message": "partial success",
-				"orderId": order.ID,
-			})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"orderId": order.ID})
 	})
 
-	r.GET("/getStatus", func(c *gin.Context) {
-		// todo: this is a GET request, get the id appropriately
-		var req idReq
-		err := c.BindJSON(&req)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{})
+	r.GET("/order/:id", func(c *gin.Context) {
+		idParam := c.Param("id")
+		orderID, err := strconv.Atoi(idParam)
+		if err != nil || orderID <= 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "id must be a positive integer"})
 			return
 		}
-		ord, ok := stock.Orders.GetOrder(req.Id)
+		ord, ok := stock.Orders.GetOrder(uint(orderID))
 		if !ok {
 			c.JSON(http.StatusNotFound, gin.H{})
 			return
@@ -89,12 +81,3 @@ func StartServer(ctx context.Context, port string, stock *Stock) {
 	})
 	r.Run(":" + port)
 }
-
-// todo: implement taking items
-// look which warehouses have required items and can satisfy
-// the request
-// for now just take as much items as possible from every warehouse
-// (eventually port our search algorithm to determine from which warehouses to)
-// if something breaks down in the process, ignore the warehouse with error
-// if we cannot satisfy the order after exhausting all the warehouses, put the order
-// on pending
