@@ -8,33 +8,39 @@ import (
 	"nvm.ga/mastersofcode/golang_2019/stock_distributed/internal/stock/warehouse"
 )
 
+// Stock represents a central facade with which clients interact via
+// order submission, and which contacts remote warehouses for items
 type Stock struct {
-	Warehouses *warehouse.Catalog
-	Orders     *order.Registry
+	Catalog *warehouse.Catalog
+	Orders  *order.Registry
 }
 
+// DiscoverWarehouses listens to warehouse invitations and adds
+// newly discovered warehouses to the stock catalog
 func (s *Stock) DiscoverWarehouses(ctx context.Context) {
 	addresses := make(chan string, 5)
 	go warehouse.ListenToInvitations(ctx, addresses)
 	for address := range addresses {
-		if s.Warehouses.HasWarehouse(address) {
+		if s.Catalog.HasWarehouse(address) {
 			continue
 		}
-		s.updateWarehouseItems(ctx, address)
+		s.addWarehouse(ctx, address)
 	}
 }
 
-func (s *Stock) updateWarehouseItems(ctx context.Context, address string) {
+// query warehouse located at the given address for its items
+// and add it to the catalog,
+func (s *Stock) addWarehouse(ctx context.Context, address string) {
 	items, err := warehouse.LoadItems(ctx, address)
 	if err != nil {
-		s.Warehouses.RemoveWarehouse(address)
+		s.Catalog.RemoveWarehouse(address)
 		return
 	}
 	log.Printf("Added warehouse %s with items %v\n", address, items)
-	s.Warehouses.AddWarehouse(address, items)
+	s.Catalog.AddWarehouse(address, items)
 }
 
-// SumbitOrder creates a new order for given items and immediately
+// SubmitOrder creates a new order for given items and immediately
 // tries to ship items
 func (s *Stock) SubmitOrder(items []int64) (*order.Order, error) {
 	// todo: later order processing will happen asynchronously
@@ -43,11 +49,11 @@ func (s *Stock) SubmitOrder(items []int64) (*order.Order, error) {
 	if err != nil {
 		return nil, err
 	}
-	shipment, err := s.Warehouses.CalculateShipment(ord)
+	shipment, err := s.Catalog.CalculateShipment(ord)
 	if err != nil {
 		return nil, err
 	}
-	err = s.Warehouses.ExecuteShipment(shipment)
+	err = s.Catalog.ExecuteShipment(shipment)
 	if err != nil {
 		// executing was not entirely successful
 		// collect all the items in the shipment, store
@@ -63,7 +69,7 @@ func (s *Stock) SubmitOrder(items []int64) (*order.Order, error) {
 
 // GreetWarehouses sends greeting to every warehouse to test connection
 func (s *Stock) GreetWarehouses() {
-	whs := s.Warehouses.GetWarehouses()
+	whs := s.Catalog.GetWarehouses()
 	for addr := range whs {
 		ctx := context.Background()
 		warehouse.GreetWarehouse(ctx, addr)

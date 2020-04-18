@@ -11,7 +11,7 @@ import (
 func main() {
 	catalog := wh.MakeCatalog()
 	ctx, cancel := context.WithCancel(context.Background())
-	st := &stock.Stock{Warehouses: catalog, Orders: order.MakeRegistry()}
+	st := &stock.Stock{Catalog: catalog, Orders: order.MakeRegistry()}
 	go st.DiscoverWarehouses(ctx)
 	go stock.StartServer(ctx, "8001", st)
 
