@@ -75,7 +75,7 @@ func (c *Catalog) CalculateShipment(o *order.Order) (Inventory, error) {
 	warehouses := c.GetWarehouses()
 	for _, orderItem := range o.Items {
 		// todo: wrap errors properly
-		address, err := findItem(warehouses, orderItem)
+		address, err := findWarehouse(warehouses, orderItem)
 		if err != nil {
 			return nil, err
 		}
@@ -93,7 +93,7 @@ func (c *Catalog) CalculateShipment(o *order.Order) (Inventory, error) {
 
 // find a warehouse that has given item on the top of its queue
 // return address of that warehouse, or error if item cannot be found
-func findItem(inv Inventory, item int64) (string, error) {
+func findWarehouse(inv Inventory, item int64) (string, error) {
 	for address, wh := range inv {
 		if len(wh) > 0 && wh[0] == item {
 			return address, nil
@@ -119,32 +119,26 @@ func popItem(inv Inventory, address string) error {
 
 // ExecuteShipment using given warehouse catalog.
 // Request items from every warehouse in the shipment
-// If at least one of the warehouses failed, return non-nil error
-func (c *Catalog) ExecuteShipment(shipment Inventory) error {
+// Return error if none of the items in the shipment were
+// successfuly requested
+// Otherwise return a slice of items that have been successfuly retrieved
+// from warehouses
+func (c *Catalog) ExecuteShipment(shipment Inventory) ([]int64, error) {
 	executed := make(Inventory)
 	for addr, items := range shipment {
 		fmt.Printf("Requesting %v from %s\n", items, addr)
 		// todo: perform a grpc take call
-		// todo if error, return executed shipping
+		// update local catalog items with the actual remaining items
+		// using the reply
 		executed[addr] = items
 	}
-	// todo:
-	// applying a shipment introduces a consistency issue:
-	// when shipment A is executed but haven't updated
-	// the catalog yet, and shipment B is calculated on
-	// the old inventory. Upon finish shipment A will
-	// apply whatever has been executed thus changing inventory,
-	// and shipment B may become invalid
-	// we can simply allow that to happen and then ensure that
-	// shipping operations are performed in a single "transaction",
-	// or we can introduce some mechanism of validation, the simplest
-	// may be adding "last calculated shipment" integer to catalog
-	c.applyShipment(executed)
-	return fmt.Errorf("not implemented")
-}
 
-func (c *Catalog) applyShipment(shipment Inventory) {
-	c.mux.Lock()
-	defer c.mux.Unlock()
-	// todo: implement
+	taken := make([]int64, 0)
+	for _, shippedItems := range shipment {
+		taken = append(taken, shippedItems...)
+	}
+	if len(taken) == 0 {
+		return nil, fmt.Errorf("Couldn't request any items")
+	}
+	return taken, nil
 }

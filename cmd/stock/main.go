@@ -20,12 +20,3 @@ func main() {
 	<-done
 	cancel()
 }
-
-// todo maybe add method to check which warehouses are still
-// alive
-// maybe make an infinite loop that will periodically check on every warehouse
-// and remove those that are dead
-
-// todo: add orders and order status checking
-
-// todo: add order persistence

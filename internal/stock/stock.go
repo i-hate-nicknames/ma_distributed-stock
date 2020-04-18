@@ -28,6 +28,11 @@ func (s *Stock) DiscoverWarehouses(ctx context.Context) {
 	}
 }
 
+// todo maybe add method to check which warehouses are still
+// alive
+// maybe make an infinite loop that will periodically check on every warehouse
+// and remove those that are dead
+
 // query warehouse located at the given address for its items
 // and add it to the catalog,
 func (s *Stock) addWarehouse(ctx context.Context, address string) {
@@ -53,16 +58,17 @@ func (s *Stock) SubmitOrder(items []int64) (*order.Order, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = s.Catalog.ExecuteShipment(shipment)
+	taken, err := s.Catalog.ExecuteShipment(shipment)
 	if err != nil {
-		// executing was not entirely successful
-		// collect all the items in the shipment, store
-		// them as shipped in the order, and remove those items
-		// from items in order
-		// set order status to pending
-
-		// we still consider a partial order satisfaction a success
 		return ord, nil
+	}
+	// todo: move this logic to order
+	if len(taken) < len(items) {
+		// partial success
+		// todo: update order with taken items
+		ord.Status = order.StatusPending
+	} else {
+		ord.Status = order.StatusCompleted
 	}
 	return ord, nil
 }

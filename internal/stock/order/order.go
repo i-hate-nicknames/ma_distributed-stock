@@ -5,6 +5,8 @@ import (
 	"sync"
 )
 
+// todo: add order persistence
+
 const (
 	// StatusPending means the order is being processed or is paused
 	StatusPending = "pending"
