@@ -6,7 +6,6 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	wh "nvm.ga/mastersofcode/golang_2019/stock_distributed/internal/stock/warehouse"
 )
 
 type itemsReq struct {
@@ -23,7 +22,7 @@ func StartServer(ctx context.Context, port string, stock *Stock) {
 	r := gin.Default()
 	r.GET("/hello", func(c *gin.Context) {
 		log.Println("Greeting all warehouses")
-		wh.GreetWarehouses(stock.Warehouses)
+		stock.GreetWarehouses()
 		c.JSON(http.StatusNoContent, gin.H{})
 	})
 	r.GET("/", func(c *gin.Context) {

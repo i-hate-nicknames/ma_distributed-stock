@@ -15,7 +15,7 @@ type Stock struct {
 
 func (s *Stock) DiscoverWarehouses(ctx context.Context) {
 	addresses := make(chan string, 5)
-	go warehouse.GetInvitations(ctx, addresses)
+	go warehouse.ListenToInvitations(ctx, addresses)
 	for address := range addresses {
 		if s.Warehouses.HasWarehouse(address) {
 			continue
@@ -25,7 +25,7 @@ func (s *Stock) DiscoverWarehouses(ctx context.Context) {
 }
 
 func (s *Stock) updateWarehouseItems(ctx context.Context, address string) {
-	items, err := warehouse.LoadInventory(ctx, address)
+	items, err := warehouse.LoadItems(ctx, address)
 	if err != nil {
 		s.Warehouses.RemoveWarehouse(address)
 		return
@@ -58,4 +58,13 @@ func (s *Stock) SumbitOrder(items []int64) (*order.Order, error) {
 		return ord, nil
 	}
 	return ord, nil
+}
+
+// GreetWarehouses sends greeting to every warehouse to test connection
+func (s *Stock) GreetWarehouses() {
+	whs := s.Warehouses.GetWarehouses()
+	for addr := range whs {
+		ctx := context.Background()
+		warehouse.GreetWarehouse(ctx, addr)
+	}
 }

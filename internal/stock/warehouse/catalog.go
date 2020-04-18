@@ -45,6 +45,10 @@ func popItem(inv Inventory, address string) error {
 	return nil
 }
 
+func (c *Catalog) GetWarehouses() Inventory {
+	return nil
+}
+
 // AddWarehouse located by this address to the list of warehouses
 func (c *Catalog) AddWarehouse(address string, items []int64) {
 	c.mux.Lock()
