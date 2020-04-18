@@ -55,22 +55,18 @@ func (s *Stock) SubmitOrder(items []int64) (*order.Order, error) {
 		return nil, err
 	}
 	shipment, err := s.Catalog.CalculateShipment(ord)
+	// todo: just set the order to pending tbh
 	if err != nil {
-		return nil, err
+		log.Println("cannot calculate shipping", err)
+		return ord, nil
 	}
 	ctx := context.Background()
 	taken, err := s.Catalog.ExecuteShipment(ctx, shipment)
 	if err != nil {
+		log.Println("no items retrieved", err)
 		return ord, nil
 	}
-	// todo: move this logic to order
-	if len(taken) < len(items) {
-		// partial success
-		// todo: update order with taken items
-		ord.Status = order.StatusPending
-	} else {
-		ord.Status = order.StatusCompleted
-	}
+	ord.AddReadyItems(taken)
 	return ord, nil
 }
 
