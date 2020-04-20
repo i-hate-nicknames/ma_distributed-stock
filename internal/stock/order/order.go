@@ -1,7 +1,7 @@
 package order
 
 import (
-	"fmt"
+	"errors"
 	"sync"
 )
 
@@ -33,6 +33,8 @@ type Order struct {
 	mux        sync.Mutex
 }
 
+var NotFoundError = errors.New("order not found")
+
 // MakeRegistry creates an empty order registry
 func MakeRegistry() *Registry {
 	orders := make(map[uint]*Order)
@@ -47,11 +49,14 @@ func MakeOrder(items []int64) *Order {
 
 // GetOrder gets order by id if it's present in the system.
 // The second result denotes whether the order was found
-func (or *Registry) GetOrder(orderID uint) (*Order, bool) {
+func (or *Registry) GetOrder(orderID uint) (*Order, error) {
 	or.mux.Lock()
 	defer or.mux.Unlock()
 	order, ok := or.orders[orderID]
-	return order, ok
+	if !ok {
+		return nil, NotFoundError
+	}
+	return order, nil
 }
 
 // SubmitOrder creates a new order and adds it to the registry
@@ -65,9 +70,9 @@ func (or *Registry) SubmitOrder(items []int64) (*Order, error) {
 }
 
 func (or *Registry) CancelOrder(orderID uint) error {
-	order, ok := or.GetOrder(orderID)
-	if !ok {
-		return fmt.Errorf("order %d not found", orderID)
+	order, err := or.GetOrder(orderID)
+	if err != nil {
+		return err
 	}
 	order.mux.Lock()
 	defer order.mux.Unlock()

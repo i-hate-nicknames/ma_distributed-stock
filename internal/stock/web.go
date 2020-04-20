@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"nvm.ga/mastersofcode/golang_2019/stock_distributed/internal/stock/order"
 )
 
 type itemsReq struct {
@@ -57,10 +58,12 @@ func makeCancelHandler(stock *Stock) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		orderID := c.GetInt(mwOrderID)
 		err := stock.Orders.CancelOrder(uint(orderID))
-		// todo: not sure how to distinguish between not found
-		// and failed to update errors here
-		if err != nil {
+		if err == order.NotFoundError {
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
 		c.JSON(http.StatusNoContent, gin.H{})
@@ -70,8 +73,8 @@ func makeCancelHandler(stock *Stock) gin.HandlerFunc {
 func makeGetHandler(stock *Stock) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		orderID := c.GetInt(mwOrderID)
-		ord, ok := stock.Orders.GetOrder(uint(orderID))
-		if !ok {
+		ord, err := stock.Orders.GetOrder(uint(orderID))
+		if err != nil {
 			c.JSON(http.StatusNotFound, gin.H{})
 			return
 		}
