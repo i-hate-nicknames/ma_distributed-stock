@@ -7,13 +7,15 @@ import (
 
 // todo: add order persistence
 
+type orderStatus string
+
 const (
 	// StatusProcessing means the order is being processed or is paused
-	StatusProcessing = "processing"
+	StatusProcessing orderStatus = iota
 	// StatusCanceled means the order is cancelled
-	StatusCanceled = "canceled"
+	StatusCanceled
 	// StatusCompleted means the order is completed, items are shipped
-	StatusCompleted = "completed"
+	StatusCompleted
 )
 
 var orderCounter uint = 0
@@ -34,7 +36,7 @@ type Order struct {
 	ID         uint
 	Items      []int64
 	ReadyItems []int64
-	Status     string
+	Status     orderStatus
 	mux        sync.Mutex
 }
 
@@ -102,5 +104,16 @@ func (o *Order) AddReadyItems(items []int64) {
 	o.ReadyItems = append(o.ReadyItems, items...)
 	if len(o.Items) == 0 {
 		o.Status = StatusCompleted
+	}
+}
+
+func (o *Order) GetStatusStr() string {
+	switch o.Status {
+	case StatusCanceled:
+		return "canceled"
+	case StatusCompleted:
+		return "completed"
+	case StatusProcessing:
+		return "processing"
 	}
 }

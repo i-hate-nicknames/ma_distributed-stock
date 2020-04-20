@@ -74,7 +74,7 @@ func makeGetHandler(stock *Stock) gin.HandlerFunc {
 			c.JSON(http.StatusNotFound, gin.H{})
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"status": ord.Status})
+		c.JSON(http.StatusOK, gin.H{"status": ord.GetStatusStr()})
 	}
 }
 
