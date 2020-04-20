@@ -54,7 +54,7 @@ func (s *Stock) SubmitOrder(items []int64) (*order.Order, error) {
 	if err != nil {
 		return nil, err
 	}
-	shipment, err := s.Catalog.CalculateShipment(ord)
+	shipment, err := s.Catalog.CalculateShipment(ord.Items)
 	// todo: just set the order to pending tbh
 	if err != nil {
 		log.Println("cannot calculate shipping", err)

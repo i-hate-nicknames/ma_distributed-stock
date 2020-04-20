@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"golang.org/x/net/context"
-	"nvm.ga/mastersofcode/golang_2019/stock_distributed/internal/stock/order"
 )
 
 const discoverTimeout = 500 * time.Millisecond
@@ -69,15 +68,15 @@ func (c *Catalog) RemoveWarehouse(address string) {
 	}
 }
 
-// CalculateShipment orders from a client order and a catalog of warehouses
-func (c *Catalog) CalculateShipment(o *order.Order) (Inventory, error) {
+// CalculateShipment from a client order and a catalog of warehouses
+func (c *Catalog) CalculateShipment(items []int64) (Inventory, error) {
 	// for every item in the order, check all warehouses if they have it
 	// use the first you come upon
-	orders := make(Inventory)
+	shipment := make(Inventory)
 	warehouses := c.GetWarehouses()
-	for _, orderItem := range o.Items {
+	for _, item := range items {
 		// todo: wrap errors properly
-		address, err := findWarehouse(warehouses, orderItem)
+		address, err := findWarehouse(warehouses, item)
 		if err != nil {
 			return nil, err
 		}
@@ -85,12 +84,12 @@ func (c *Catalog) CalculateShipment(o *order.Order) (Inventory, error) {
 		if err != nil {
 			return nil, err
 		}
-		if _, ok := orders[address]; !ok {
-			orders[address] = make([]int64, 0)
+		if _, ok := shipment[address]; !ok {
+			shipment[address] = make([]int64, 0)
 		}
-		orders[address] = append(orders[address], orderItem)
+		shipment[address] = append(shipment[address], item)
 	}
-	return orders, nil
+	return shipment, nil
 }
 
 // find a warehouse that has given item on the top of its queue
