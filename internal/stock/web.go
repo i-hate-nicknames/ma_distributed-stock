@@ -50,10 +50,6 @@ func orderIDMiddleware() gin.HandlerFunc {
 	}
 }
 
-// todo: currently sets order state to canceled
-// when order scheduler is implemented the status should
-// be pendingCancel that denote that the order is planned to
-// be canceled
 func makeCancelHandler(stock *Stock) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		orderID := c.GetInt(mwOrderID)

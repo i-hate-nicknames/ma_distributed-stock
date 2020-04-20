@@ -25,6 +25,11 @@ type Registry struct {
 }
 
 // Order represents a user order for a set of items
+// Items represent items that need to be fetched from remote warehouses
+// ReadyItems represent items that have been fetched from remote warehouses
+// and are ready to be delivered to the client
+// Orders is created with empty ReadyItems and when all the Items move to
+// ReadyItems the order is considered to be completed
 type Order struct {
 	ID         uint
 	Items      []int64
@@ -69,6 +74,10 @@ func (or *Registry) SubmitOrder(items []int64) (*Order, error) {
 	return order, nil
 }
 
+// CancelOrder identified by the given orderID
+// This function only updates the status and doesn't do
+// anything with the ready items
+// Return NotFoundError when there is no such order in the system
 func (or *Registry) CancelOrder(orderID uint) error {
 	order, err := or.GetOrder(orderID)
 	if err != nil {
@@ -76,15 +85,21 @@ func (or *Registry) CancelOrder(orderID uint) error {
 	}
 	order.mux.Lock()
 	defer order.mux.Unlock()
+	// todo: currently sets order state to canceled
+	// when order scheduler is implemented the status should
+	// be pendingCancel that denote that the order is planned to
+	// be canceled
 	order.Status = StatusCanceled
 	return nil
 }
 
-func (o *Order) AddReadyItems(taken []int64) {
+// AddReadyItems adds items to the list of ready for delivery
+// items of this order
+func (o *Order) AddReadyItems(items []int64) {
 	o.mux.Lock()
 	defer o.mux.Unlock()
-	o.Items = o.Items[len(taken):]
-	o.ReadyItems = append(o.ReadyItems, taken...)
+	o.Items = o.Items[len(items):]
+	o.ReadyItems = append(o.ReadyItems, items...)
 	if len(o.Items) == 0 {
 		o.Status = StatusCompleted
 	}
