@@ -13,6 +13,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	st := &stock.Stock{Catalog: catalog, Orders: order.MakeRegistry()}
 	go st.DiscoverWarehouses(ctx)
+	go st.RunProcessor(ctx)
 	go stock.StartWebServer(ctx, "8001", st)
 
 	// todo: listen to cancellation signals

@@ -16,7 +16,8 @@ type Stock struct {
 }
 
 // DiscoverWarehouses listens to warehouse invitations and adds
-// newly discovered warehouses to the stock catalog
+// newly discovered warehouses to the stock catalog.
+// This is a blocking call
 func (s *Stock) DiscoverWarehouses(ctx context.Context) {
 	addresses := make(chan string, 5)
 	go warehouse.ListenToInvitations(ctx, addresses)
@@ -26,6 +27,12 @@ func (s *Stock) DiscoverWarehouses(ctx context.Context) {
 		}
 		s.addWarehouse(ctx, address)
 	}
+}
+
+// RunProcessor that will periodically load pending orders
+// and process them. This is a blocking call
+func (s *Stock) RunProcessor(ctx context.Context) {
+	order.RunProcessor(ctx, s.Orders)
 }
 
 // todo maybe add method to check which warehouses are still

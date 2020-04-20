@@ -7,11 +7,11 @@ import (
 
 // todo: add order persistence
 
-type orderStatus string
+type orderStatus int
 
 const (
-	// StatusProcessing means the order is being processed or is paused
-	StatusProcessing orderStatus = iota
+	// StatusPending means the order is being processed or is paused
+	StatusPending orderStatus = iota
 	// StatusCanceled means the order is cancelled
 	StatusCanceled
 	// StatusCompleted means the order is completed, items are shipped
@@ -51,7 +51,7 @@ func MakeRegistry() *Registry {
 // MakeOrder creates new order with the given items, and assingns it an id
 func MakeOrder(items []int64) *Order {
 	orderCounter++
-	return &Order{ID: orderCounter, Items: items, Status: StatusProcessing}
+	return &Order{ID: orderCounter, Items: items, Status: StatusPending}
 }
 
 // GetOrder gets order by id if it's present in the system.
@@ -95,6 +95,22 @@ func (or *Registry) CancelOrder(orderID uint) error {
 	return nil
 }
 
+// GetOrdersByStatus finds all the orders in the registry with specified status,
+// at most max orders. If max is negative there is no limit to the number of
+// orders
+func (or *Registry) GetOrdersByStatus(status orderStatus, max int) []*Order {
+	result := make([]*Order, 0)
+	for _, order := range or.orders {
+		if max == len(result) {
+			break
+		}
+		if order.Status == status {
+			result = append(result, order)
+		}
+	}
+	return result
+}
+
 // AddReadyItems adds items to the list of ready for delivery
 // items of this order
 func (o *Order) AddReadyItems(items []int64) {
@@ -113,7 +129,9 @@ func (o *Order) GetStatusStr() string {
 		return "canceled"
 	case StatusCompleted:
 		return "completed"
-	case StatusProcessing:
-		return "processing"
+	case StatusPending:
+		return "pending"
+	default:
+		panic("missing status")
 	}
 }
