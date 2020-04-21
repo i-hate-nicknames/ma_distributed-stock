@@ -84,6 +84,8 @@ func (service *whService) PutItems(ctx context.Context, itemList *api.ItemList) 
 func (service *whService) TakeItems(ctx context.Context, itemList *api.ItemList) (*api.ItemList, error) {
 	mux.Lock()
 	defer mux.Unlock()
+	// simulate hard work
+	time.Sleep(2 * time.Second)
 	log.Printf("Processing items request %v, having %v", itemList.Items, myItems.Items)
 	requestItems := itemList.GetItems()
 	if len(requestItems) > len(myItems.Items) {
