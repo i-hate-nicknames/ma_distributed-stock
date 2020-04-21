@@ -125,18 +125,26 @@ func popItem(inv Inventory, address string) error {
 // Otherwise return a slice of items that have been successfuly retrieved
 func (c *Catalog) ExecuteShipment(ctx context.Context, shipment Inventory) ([]int64, error) {
 	taken := make([]int64, 0)
+	// todo: currently we query every warehouse synchronously, but it would
+	// be much better to query them all at once and then combine results
+	var wg sync.WaitGroup
+	wg.Add(len(shipment))
 	for address, items := range shipment {
-		log.Printf("Requesting %v from %s\n", items, address)
-		remaining, err := TakeItems(ctx, address, items)
-		if err != nil {
-			log.Println("Cannot take items from ", address, err.Error())
-			continue
-		}
-		c.mux.Lock()
-		c.warehouses[address] = remaining
-		c.mux.Unlock()
-		taken = append(taken, items...)
+		go func(address string, items []int64) {
+			defer wg.Done()
+			log.Printf("Requesting %v from %s\n", items, address)
+			remaining, err := TakeItems(ctx, address, items)
+			if err != nil {
+				log.Println("Cannot take items from ", address, err.Error())
+				return
+			}
+			c.mux.Lock()
+			c.warehouses[address] = remaining
+			taken = append(taken, items...)
+			c.mux.Unlock()
+		}(address, items)
 	}
+	wg.Wait()
 	if len(taken) == 0 {
 		return nil, fmt.Errorf("Couldn't request any items")
 	}
