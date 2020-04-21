@@ -114,6 +114,9 @@ func (or *Registry) GetOrdersByStatus(status orderStatus, max int) []*Order {
 // AddReadyItems adds items to the list of ready for delivery
 // items of this order
 func (o *Order) AddReadyItems(items []int64) {
+	if len(items) == 0 {
+		return
+	}
 	o.mux.Lock()
 	defer o.mux.Unlock()
 	o.Items = o.Items[len(items):]

@@ -2,11 +2,8 @@ package warehouse
 
 import (
 	"fmt"
-	"log"
 	"sync"
 	"time"
-
-	"golang.org/x/net/context"
 )
 
 const discoverTimeout = 500 * time.Millisecond
@@ -43,7 +40,7 @@ func (c *Catalog) GetWarehouses() Inventory {
 }
 
 // AddWarehouse located by this address to the list of warehouses
-func (c *Catalog) AddWarehouse(address string, items []int64) {
+func (c *Catalog) SetWarehouse(address string, items []int64) {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 	c.warehouses[address] = items
@@ -116,37 +113,4 @@ func popItem(inv Inventory, address string) error {
 	}
 	inv[address] = wh[1:]
 	return nil
-}
-
-// ExecuteShipment using given warehouse catalog.
-// Request items from every warehouse in the shipment
-// Return error if none of the items in the shipment were
-// successfuly requested
-// Otherwise return a slice of items that have been successfuly retrieved
-func (c *Catalog) ExecuteShipment(ctx context.Context, shipment Inventory) ([]int64, error) {
-	taken := make([]int64, 0)
-	// todo: currently we query every warehouse synchronously, but it would
-	// be much better to query them all at once and then combine results
-	var wg sync.WaitGroup
-	wg.Add(len(shipment))
-	for address, items := range shipment {
-		go func(address string, items []int64) {
-			defer wg.Done()
-			log.Printf("Requesting %v from %s\n", items, address)
-			remaining, err := TakeItems(ctx, address, items)
-			if err != nil {
-				log.Println("Cannot take items from ", address, err.Error())
-				return
-			}
-			c.mux.Lock()
-			c.warehouses[address] = remaining
-			taken = append(taken, items...)
-			c.mux.Unlock()
-		}(address, items)
-	}
-	wg.Wait()
-	if len(taken) == 0 {
-		return nil, fmt.Errorf("Couldn't request any items")
-	}
-	return taken, nil
 }

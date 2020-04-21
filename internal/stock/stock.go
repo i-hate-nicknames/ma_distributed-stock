@@ -32,7 +32,8 @@ func (s *Stock) DiscoverWarehouses(ctx context.Context) {
 // RunProcessor that will periodically load pending orders
 // and process them. This is a blocking call
 func (s *Stock) RunProcessor(ctx context.Context) {
-	order.RunProcessor(ctx, s.Orders)
+	processor := order.MakeProcessor(s.Orders, s.Catalog)
+	processor.RunProcessor(ctx)
 }
 
 // todo maybe add method to check which warehouses are still
@@ -49,7 +50,7 @@ func (s *Stock) addWarehouse(ctx context.Context, address string) {
 		return
 	}
 	log.Printf("Added warehouse %s with items %v\n", address, items)
-	s.Catalog.AddWarehouse(address, items)
+	s.Catalog.SetWarehouse(address, items)
 }
 
 // SubmitOrder creates a new order for given items and immediately
@@ -61,19 +62,6 @@ func (s *Stock) SubmitOrder(items []int64) (*order.Order, error) {
 	if err != nil {
 		return nil, err
 	}
-	shipment, err := s.Catalog.CalculateShipment(ord.Items)
-	// todo: just set the order to pending tbh
-	if err != nil {
-		log.Println("cannot calculate shipping", err)
-		return ord, nil
-	}
-	ctx := context.Background()
-	taken, err := s.Catalog.ExecuteShipment(ctx, shipment)
-	if err != nil {
-		log.Println("no items retrieved", err)
-		return ord, nil
-	}
-	ord.AddReadyItems(taken)
 	return ord, nil
 }
 
